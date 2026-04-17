@@ -42,7 +42,7 @@ function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                 <XAxis dataKey="day" stroke="var(--color-muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip formatter={(v: number) => formatPKR(v)} contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8 }} />
+                <Tooltip formatter={(v) => formatPKR(Number(v))} contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8 }} />
                 <Bar dataKey="sales" fill="var(--color-amber-brand)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -156,7 +156,7 @@ function DashboardPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
               <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={12} />
               <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
-              <Tooltip formatter={(v: number) => formatPKR(v)} contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8 }} />
+              <Tooltip formatter={(v) => formatPKR(Number(v))} contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8 }} />
               <Legend />
               <Area type="monotone" dataKey="revenue" stroke="var(--color-amber-brand)" fill="url(#rev)" strokeWidth={2} />
               <Area type="monotone" dataKey="expense" stroke="var(--color-walnut)" fill="url(#exp)" strokeWidth={2} />
