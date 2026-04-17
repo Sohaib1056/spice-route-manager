@@ -78,7 +78,7 @@ function SupplierPage() {
             setList((l) => l.map((x) => (x.id === editing.data!.id ? { ...x, ...s } : x)));
             toast.success("Supplier updated");
           } else {
-            setList((l) => [{ id: `s${Date.now()}`, totalPurchases: 0, balanceDue: 0, status: "Paid", openingBalance: 0, ...s } as Supplier, ...l]);
+            setList((l) => [{ id: `s${Date.now()}`, totalPurchases: 0, balanceDue: 0, status: "Paid", ...s } as Supplier, ...l]);
             toast.success("Supplier added");
           }
           setEditing({ open: false });
