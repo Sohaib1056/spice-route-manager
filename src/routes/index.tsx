@@ -36,7 +36,7 @@ function DashboardPage() {
             <h3 className="font-display text-lg font-semibold text-walnut">Sales This Week</h3>
             <Pill tone="amber">PKR</Pill>
           </div>
-          <div className="h-64">
+          <div className="h-64 w-full min-h-[256px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklySales} margin={{ left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -140,7 +140,7 @@ function DashboardPage() {
       {/* Revenue vs Expense */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
         <h3 className="font-display text-lg font-semibold text-walnut mb-4">Monthly Revenue vs Expense</h3>
-        <div className="h-72">
+        <div className="h-72 w-full min-h-[288px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={monthlyRevExp} margin={{ left: -10 }}>
               <defs>

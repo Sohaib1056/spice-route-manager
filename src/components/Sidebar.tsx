@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Boxes, ShoppingCart, Receipt, Truck,
   TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, LogOut, Nut,
@@ -49,6 +49,13 @@ const groups: { label: string; items: NavItem[] }[] = [
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, isAdmin } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear any auth data if needed
+    // localStorage.removeItem('authToken');
+    navigate({ to: "/login" });
+  };
 
   return (
     <>
@@ -119,7 +126,12 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               <p className="truncate text-sm font-medium text-cream">{user.name}</p>
               <p className="text-[10px] uppercase tracking-wide text-amber-brand">{user.role}</p>
             </div>
-            <button className="rounded-md p-2 text-cream/70 hover:bg-sidebar-accent hover:text-cream" aria-label="Logout">
+            <button 
+              onClick={handleLogout}
+              className="rounded-md p-2 text-cream/70 hover:bg-sidebar-accent hover:text-cream transition-colors" 
+              aria-label="Logout"
+              title="Logout"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           </div>

@@ -52,7 +52,7 @@ function FinancePage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <h3 className="font-display text-lg font-semibold text-walnut mb-4">Revenue vs Expense</h3>
-          <div className="h-72">
+          <div className="h-72 w-full min-h-[288px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthlyRevExp} margin={{ left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
@@ -68,7 +68,7 @@ function FinancePage() {
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <h3 className="font-display text-lg font-semibold text-walnut mb-4">Expense Breakdown</h3>
-          <div className="h-72">
+          <div className="h-72 w-full min-h-[288px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={expenseBreakdown} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>

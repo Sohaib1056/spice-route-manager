@@ -4,15 +4,17 @@ import { useAuth } from "@/hooks/useAuth";
 
 export function TopHeader({ title, onMenu }: { title: string; onMenu: () => void }) {
   const { user } = useAuth();
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    // Initialize on client side only
+    setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const dateStr = now.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
-  const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateStr = now?.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }) || "";
+  const timeStr = now?.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) || "";
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/90 px-4 md:px-6 backdrop-blur">
@@ -27,10 +29,12 @@ export function TopHeader({ title, onMenu }: { title: string; onMenu: () => void
       </div>
 
       <div className="flex items-center gap-3 md:gap-5">
-        <div className="hidden md:block text-right">
-          <p className="text-sm font-medium text-walnut">{dateStr}</p>
-          <p className="text-xs text-muted-foreground tabular-nums">{timeStr}</p>
-        </div>
+        {now && (
+          <div className="hidden md:block text-right">
+            <p className="text-sm font-medium text-walnut">{dateStr}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">{timeStr}</p>
+          </div>
+        )}
 
         <button className="relative rounded-full p-2 text-walnut hover:bg-muted" aria-label="Notifications">
           <Bell className="h-5 w-5" />
