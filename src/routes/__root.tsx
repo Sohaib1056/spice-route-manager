@@ -55,6 +55,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/jpeg" sizes="32x32" href="/assets/images/logo.jpg" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/logo.jpg" />
+        <meta name="theme-color" content="#D4860A" />
       </head>
       <body>
         {children}
