@@ -61,6 +61,8 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
     defaultErrorComponent: DefaultErrorComponent,
+    // Ensure client-side only routing
+    defaultPendingComponent: () => null,
   });
 
   return router;
