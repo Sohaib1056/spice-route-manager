@@ -1,10 +1,11 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Package, Boxes, ShoppingCart, Receipt, Truck,
-  TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, LogOut, Nut,
+  TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 
 interface NavItem {
   to: string;
@@ -70,13 +71,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-brand">
-            <Nut className="h-5 w-5 text-amber-brand-foreground" />
-          </div>
-          <div>
-            <p className="font-display text-lg font-bold text-amber-brand leading-none">DryFruit Pro</p>
-            <p className="text-[10px] text-cream/70 mt-1 tracking-wide">WHOLESALE & RETAIL</p>
-          </div>
+          <Logo size="md" variant="white" showText={true} />
         </div>
 
         {/* Nav */}

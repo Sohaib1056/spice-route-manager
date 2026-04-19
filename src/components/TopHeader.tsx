@@ -22,9 +22,18 @@ export function TopHeader({ title, onMenu }: { title: string; onMenu: () => void
         <button onClick={onMenu} className="md:hidden rounded-md p-2 text-walnut hover:bg-muted" aria-label="Open menu">
           <Menu className="h-5 w-5" />
         </button>
-        <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-display font-semibold text-walnut truncate">{title}</h1>
-          <p className="text-xs text-muted-foreground hidden sm:block">Aapka muamal, hamare haath mein</p>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg bg-white overflow-hidden shadow-sm">
+            <img 
+              src="/assets/images/logo.jpg" 
+              alt="DryFruit Pro" 
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-display font-semibold text-walnut truncate">{title}</h1>
+            <p className="text-xs text-muted-foreground hidden sm:block">Aapka muamal, hamare haath mein</p>
+          </div>
         </div>
       </div>
 

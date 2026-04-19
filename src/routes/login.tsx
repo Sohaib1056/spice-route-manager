@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Pill } from "@/components/Pill";
+import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
@@ -98,28 +99,22 @@ function LoginPage() {
         />
 
         <div className="relative z-10 text-center max-w-md">
-          {/* Hand-crafted Dry Fruit SVG Illustration */}
-          <div className="mb-8 relative h-32">
-            <svg className="absolute left-1/2 top-0 -translate-x-1/2 animate-float" width="280" height="120" viewBox="0 0 280 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Badam (Almond) */}
-              <ellipse cx="50" cy="60" rx="12" ry="20" stroke="#D4860A" strokeWidth="2" fill="none" />
-              <path d="M 50 40 Q 55 60 50 80" stroke="#D4860A" strokeWidth="1.5" fill="none" />
-              
-              {/* Kaju (Cashew) */}
-              <path className="animate-float-delayed" d="M 100 50 Q 110 45 115 55 Q 118 65 110 75 Q 100 80 95 70 Q 92 60 100 50 Z" stroke="#D4860A" strokeWidth="2" fill="none" />
-              
-              {/* Pista (Pistachio) */}
-              <ellipse cx="150" cy="60" rx="10" ry="16" stroke="#D4860A" strokeWidth="2" fill="none" />
-              <line x1="150" y1="44" x2="150" y2="76" stroke="#D4860A" strokeWidth="1.5" />
-              
-              {/* Kishmish (Raisin) */}
-              <ellipse className="animate-float" cx="195" cy="65" rx="8" ry="14" stroke="#D4860A" strokeWidth="2" fill="none" />
-              <ellipse cx="195" cy="60" rx="6" ry="10" stroke="#D4860A" strokeWidth="1" fill="none" />
-              
-              {/* Akhrot (Walnut) */}
-              <circle cx="235" cy="60" rx="15" ry="15" stroke="#D4860A" strokeWidth="2" fill="none" />
-              <path d="M 235 45 Q 240 60 235 75 M 235 45 Q 230 60 235 75" stroke="#D4860A" strokeWidth="1.5" fill="none" />
-            </svg>
+          {/* Hand-crafted Dry Fruit Logo */}
+          <div className="mb-8 flex justify-center">
+            <div className="relative">
+              <div className="h-32 w-32 rounded-full bg-white/10 backdrop-blur-sm p-3 shadow-2xl">
+                <img 
+                  src="/assets/images/logo.jpg" 
+                  alt="DryFruit Pro" 
+                  className="h-full w-full object-cover rounded-full"
+                />
+              </div>
+              <div className="absolute -bottom-2 -right-2 h-12 w-12 rounded-full bg-amber-brand flex items-center justify-center shadow-lg">
+                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
           </div>
 
           {/* Logo & Title */}
@@ -150,6 +145,9 @@ function LoginPage() {
         <div className="w-full max-w-md animate-fade-up">
           {/* Mobile Logo */}
           <div className="lg:hidden mb-8 text-center">
+            <div className="flex justify-center mb-3">
+              <Logo size="md" variant="default" showText={false} />
+            </div>
             <h1 className="font-display text-3xl font-bold text-walnut mb-1">DryFruit Pro</h1>
             <p className="text-lg text-amber-brand font-semibold" style={{ fontFamily: 'Noto Nastaliq Urdu, serif', direction: 'rtl' }}>
               آپ کا معاملہ، ہمارے ہاتھ میں
