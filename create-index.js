@@ -22,8 +22,17 @@ if (!fs.existsSync(assetsDir)) {
 
 // Find CSS and JS files
 const files = fs.readdirSync(assetsDir);
-const cssFile = files.find(f => f.startsWith('styles-') && f.endsWith('.css'));
-const jsFile = files.find(f => f.startsWith('index-') && f.endsWith('.js'));
+const cssFile = files.find(f => f.endsWith('.css'));
+
+// Find the main index JS file (the largest one, which is the entry point)
+const indexFiles = files.filter(f => f.startsWith('index-') && f.endsWith('.js'));
+let jsFile = null;
+if (indexFiles.length > 0) {
+  // Sort by file size descending and pick the largest
+  jsFile = indexFiles
+    .map(f => ({ name: f, size: fs.statSync(path.join(assetsDir, f)).size }))
+    .sort((a, b) => b.size - a.size)[0].name;
+}
 
 console.log('📦 Found assets:');
 console.log(`  CSS: ${cssFile || 'not found'}`);
