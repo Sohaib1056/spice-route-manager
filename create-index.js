@@ -1,14 +1,33 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Read the dist/client directory to find the main JS and CSS files
 const clientDir = path.join(__dirname, 'dist', 'client');
 const assetsDir = path.join(clientDir, 'assets');
 
+// Check if directories exist
+if (!fs.existsSync(clientDir)) {
+  console.error('❌ dist/client directory not found');
+  process.exit(1);
+}
+
+if (!fs.existsSync(assetsDir)) {
+  console.error('❌ dist/client/assets directory not found');
+  process.exit(1);
+}
+
 // Find CSS and JS files
 const files = fs.readdirSync(assetsDir);
 const cssFile = files.find(f => f.startsWith('styles-') && f.endsWith('.css'));
 const jsFile = files.find(f => f.startsWith('index-') && f.endsWith('.js'));
+
+console.log('📦 Found assets:');
+console.log(`  CSS: ${cssFile || 'not found'}`);
+console.log(`  JS: ${jsFile || 'not found'}`);
 
 // Create index.html
 const html = `<!DOCTYPE html>
@@ -31,6 +50,5 @@ const html = `<!DOCTYPE html>
 
 // Write index.html
 fs.writeFileSync(path.join(clientDir, 'index.html'), html);
-console.log('✓ index.html created successfully');
-console.log(`  CSS: ${cssFile || 'not found'}`);
-console.log(`  JS: ${jsFile || 'not found'}`);
+console.log('✅ index.html created successfully');
+console.log(`📄 Location: ${path.join(clientDir, 'index.html')}`);
