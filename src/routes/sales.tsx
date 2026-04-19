@@ -10,7 +10,7 @@ import { formatPKR, formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/sales")({ component: SalesPage });
 
-interface CartItem { productId: string; name: string; qty: number; price: number; }
+interface CartItem { productId: string; name: string; qty: number; price: number; unit: string; }
 
 function SalesPage() {
   const [tab, setTab] = useState<"new" | "history">("new");
@@ -53,12 +53,20 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
     if (p.stock === 0) return;
     setCart((c) => {
       const ex = c.find((x) => x.productId === p.id);
-      if (ex) return c.map((x) => (x.productId === p.id ? { ...x, qty: x.qty + 1 } : x));
-      return [...c, { productId: p.id, name: p.name, qty: 1, price: p.sellPrice }];
+      // kg mein 0.5 increment, gram mein 100g increment, baqi mein 1
+      const increment = p.unit === "kg" ? 0.5 : p.unit === "g" ? 100 : 1;
+      if (ex) return c.map((x) => (x.productId === p.id ? { ...x, qty: x.qty + increment } : x));
+      return [...c, { productId: p.id, name: p.name, qty: increment, price: p.sellPrice, unit: p.unit }];
     });
   };
 
-  const setQty = (id: string, delta: number) => setCart((c) => c.map((x) => x.productId === id ? { ...x, qty: Math.max(1, x.qty + delta) } : x));
+  const setQty = (id: string, delta: number) => {
+    const item = cart.find((x) => x.productId === id);
+    if (!item) return;
+    // kg mein 0.5 increment, gram mein 100g increment, baqi mein 1
+    const increment = item.unit === "kg" ? 0.5 : item.unit === "g" ? 100 : 1;
+    setCart((c) => c.map((x) => x.productId === id ? { ...x, qty: Math.max(increment, x.qty + (delta * increment)) } : x));
+  };
 
   const complete = () => {
     if (cart.length === 0) { toast.error("Cart is empty"); return; }
@@ -113,11 +121,30 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
             <div key={c.productId} className="flex items-center gap-2 rounded-lg bg-cream/60 p-2">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-walnut truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} × {c.qty}</p>
+                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} × {c.qty} {c.unit}</p>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setQty(c.productId, -1)} className="rounded-md border border-border p-1 text-walnut hover:bg-cream"><Minus className="h-3 w-3" /></button>
-                <span className="w-7 text-center text-sm font-medium text-walnut tabular-nums">{c.qty}</span>
+                <input
+                  type="number"
+                  value={c.qty}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val > 0) {
+                      setCart((cc) => cc.map((x) => x.productId === c.productId ? { ...x, qty: val } : x));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Agar empty ya 0 hai toh minimum value set karo
+                    const val = Number(e.target.value);
+                    if (!val || val <= 0) {
+                      const minVal = c.unit === "kg" ? 0.5 : c.unit === "g" ? 50 : 1;
+                      setCart((cc) => cc.map((x) => x.productId === c.productId ? { ...x, qty: minVal } : x));
+                    }
+                  }}
+                  className="w-16 text-center text-sm font-medium text-walnut tabular-nums border border-border rounded px-1 py-0.5 focus:outline-none focus:border-amber-brand focus:ring-1 focus:ring-amber-brand"
+                  placeholder={c.unit}
+                />
                 <button onClick={() => setQty(c.productId, 1)} className="rounded-md border border-border p-1 text-walnut hover:bg-cream"><Plus className="h-3 w-3" /></button>
               </div>
               <p className="w-20 text-right text-sm font-medium text-walnut tabular-nums">{formatPKR(c.qty * c.price)}</p>
@@ -256,7 +283,7 @@ function History({ list }: { list: Sale[] }) {
             <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
               <thead className="bg-cream"><tr><th className="text-left p-2">Item</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Price</th><th className="text-right p-2">Total</th></tr></thead>
               <tbody>{view.items.map((it, i) => (
-                <tr key={i} className="border-t border-border"><td className="p-2">{it.name}</td><td className="p-2 text-right">{it.qty}</td><td className="p-2 text-right">{formatPKR(it.price)}</td><td className="p-2 text-right">{formatPKR(it.qty * it.price)}</td></tr>
+                <tr key={i} className="border-t border-border"><td className="p-2">{it.name}</td><td className="p-2 text-right">{it.qty} {it.unit || 'pcs'}</td><td className="p-2 text-right">{formatPKR(it.price)}</td><td className="p-2 text-right">{formatPKR(it.qty * it.price)}</td></tr>
               ))}</tbody>
             </table>
             <div className="ml-auto w-64 mt-4 space-y-1 text-sm">

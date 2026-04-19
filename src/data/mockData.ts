@@ -49,7 +49,7 @@ export interface Sale {
   date: string;
   customer: string;
   customerPhone?: string;
-  items: { productId: string; name: string; qty: number; price: number }[];
+  items: { productId: string; name: string; qty: number; price: number; unit?: string }[];
   subtotal: number;
   discount: number;
   tax: number;
@@ -64,13 +64,15 @@ export interface Purchase {
   date: string;
   supplierId: string;
   supplierName: string;
-  items: { productId: string; name: string; qty: number; price: number }[];
+  items: { productId: string; name: string; qty: number; price: number; unit?: string }[];
   subtotal: number;
   discount: number;
   tax: number;
   total: number;
   status: "Draft" | "Sent" | "Received" | "Cancelled";
   paymentStatus: "Paid" | "Pending" | "Partial";
+  receivedDate?: string;
+  supplierBill?: { name: string; url: string; size: number };
 }
 
 export interface StockMovement {

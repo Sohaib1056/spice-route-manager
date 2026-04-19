@@ -19,3 +19,16 @@ export const formatDateTime = (d: string | Date) => {
     minute: "2-digit",
   })}`;
 };
+
+// Format quantity with unit (e.g., "2.5 kg", "250 g", "3 pack")
+export const formatQty = (qty: number, unit: string) => {
+  // Gram mein agar 1000 se zyada hai toh kg mein convert karo
+  if (unit === "g" && qty >= 1000) {
+    return `${(qty / 1000).toFixed(2)} kg`;
+  }
+  // Decimal values ko properly format karo
+  if (qty % 1 !== 0) {
+    return `${qty.toFixed(2)} ${unit}`;
+  }
+  return `${qty} ${unit}`;
+};
