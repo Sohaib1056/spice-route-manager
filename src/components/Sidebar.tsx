@@ -1,4 +1,4 @@
-import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Package, Boxes, ShoppingCart, Receipt, Truck,
   TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, LogOut,
@@ -49,13 +49,14 @@ const groups: { label: string; items: NavItem[] }[] = [
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, isAdmin } = useAuth();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const location = useLocation();
+  const pathname = location.pathname;
   const navigate = useNavigate();
 
   const handleLogout = () => {
     // Clear any auth data if needed
     // localStorage.removeItem('authToken');
-    navigate({ to: "/login" });
+    navigate("/login");
   };
 
   return (
@@ -65,7 +66,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-60 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
@@ -90,7 +91,6 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                       <li key={item.to}>
                         <Link
                           to={item.to}
-                          onClick={onClose}
                           className={cn(
                             "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                             active

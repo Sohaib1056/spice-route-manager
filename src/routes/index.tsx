@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import {
   Receipt, Package, AlertCircle, Clock, ShoppingBag,
 } from "lucide-react";
@@ -13,9 +13,7 @@ import {
 } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
 
-export const Route = createFileRoute("/")({ component: DashboardPage });
-
-function DashboardPage() {
+export default function DashboardPage() {
   const stats = dashboardStats();
   const recent = sales.slice(0, 6);
   const lowStock = products.filter((p) => p.stock < p.minStock).slice(0, 5);

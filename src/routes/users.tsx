@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -8,9 +7,7 @@ import { Modal } from "@/components/Modal";
 import { users as seed, type UserRecord } from "@/data/mockData";
 import { formatDate, formatDateTime } from "@/lib/format";
 
-export const Route = createFileRoute("/users")({ component: UsersPage });
-
-function UsersPage() {
+export default function UsersPage() {
   const [list, setList] = useState<UserRecord[]>(seed);
   const [modal, setModal] = useState<{ open: boolean; editing?: UserRecord }>({ open: false });
 

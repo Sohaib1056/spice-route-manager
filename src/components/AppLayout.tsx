@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { useRouterState } from "@tanstack/react-router";
+import { useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { TopHeader } from "./TopHeader";
 
@@ -19,17 +19,20 @@ const titles: Record<string, string> = {
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const path = useRouterState({ select: (s) => s.location.pathname });
+  const location = useLocation();
+  const path = location.pathname;
   const title = titles[path] ?? "DryFruit Pro";
 
   if (path === "/login") return <>{children}</>;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background">
       <Sidebar open={open} onClose={() => setOpen(false)} />
-      <div className="md:pl-60">
+      <div className="flex-1 md:pl-60">
         <TopHeader title={title} onMenu={() => setOpen(true)} />
-        <main className="p-4 md:p-6">{children}</main>
+        <main className="p-4 md:p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

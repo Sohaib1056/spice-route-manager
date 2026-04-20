@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -10,9 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { purchases as seed, suppliers, products, type Purchase } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
 
-export const Route = createFileRoute("/purchase")({ component: PurchasePage });
-
-function PurchasePage() {
+export default function PurchasePage() {
   const [list, setList] = useState<Purchase[]>(seed);
   const [tab, setTab] = useState<"po" | "grn">("po");
   const [showForm, setShowForm] = useState(false);

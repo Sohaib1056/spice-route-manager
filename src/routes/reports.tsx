@@ -1,12 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { ShoppingCart, Truck, Boxes, TrendingUp, Users as UsersIcon, FileBarChart, Download, Printer } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { sales, weeklySales } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
-
-export const Route = createFileRoute("/reports")({ component: ReportsPage });
 
 const reports = [
   { id: "sales",     title: "Sales Report",     desc: "Filter by date, product, or customer", icon: ShoppingCart,  tone: "amber" },
@@ -24,7 +21,7 @@ const toneMap: Record<string, string> = {
   info: "bg-info/10 text-info",
 };
 
-function ReportsPage() {
+export default function ReportsPage() {
   const [active, setActive] = useState<string | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");

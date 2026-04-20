@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -9,9 +8,7 @@ import { Modal } from "@/components/Modal";
 import { suppliers as seed, type Supplier } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
 
-export const Route = createFileRoute("/supplier")({ component: SupplierPage });
-
-function SupplierPage() {
+export default function SupplierPage() {
   const [list, setList] = useState<Supplier[]>(seed);
   const [editing, setEditing] = useState<{ open: boolean; data?: Supplier }>({ open: false });
   const [ledger, setLedger] = useState<Supplier | null>(null);

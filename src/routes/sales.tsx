@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Search, Minus, Plus, Trash2, Printer, Eye } from "lucide-react";
@@ -8,11 +7,9 @@ import { EmptyState } from "@/components/EmptyState";
 import { products, sales as seedSales, type Sale } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
 
-export const Route = createFileRoute("/sales")({ component: SalesPage });
-
 interface CartItem { productId: string; name: string; qty: number; price: number; unit: string; }
 
-function SalesPage() {
+export default function SalesPage() {
   const [tab, setTab] = useState<"new" | "history">("new");
   const [list, setList] = useState<Sale[]>(seedSales);
 

@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -10,9 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { products as seedP, stockMovements as seedM, type Product } from "@/data/mockData";
 import { formatPKR, formatDateTime } from "@/lib/format";
 
-export const Route = createFileRoute("/stock")({ component: StockPage });
-
-function StockPage() {
+export default function StockPage() {
   const [tab, setTab] = useState<"overview" | "history">("overview");
   const [products, setProducts] = useState(seedP);
   const [movements, setMovements] = useState(seedM);

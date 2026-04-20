@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -10,11 +9,9 @@ import { Modal } from "@/components/Modal";
 import { financeTxns as seed, monthlyRevExp, expenseBreakdown, type FinanceTxn } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
 
-export const Route = createFileRoute("/finance")({ component: FinancePage });
-
 const COLORS = ["var(--color-amber-brand)", "var(--color-walnut)", "var(--color-pistachio)", "var(--color-info)", "var(--color-destructive)"];
 
-function FinancePage() {
+export default function FinancePage() {
   const [list, setList] = useState<FinanceTxn[]>(seed);
   const [range, setRange] = useState("This Month");
   const [showAdd, setShowAdd] = useState(false);

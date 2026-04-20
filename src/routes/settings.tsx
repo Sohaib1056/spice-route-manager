@@ -1,11 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Upload, Download, Database, AlertTriangle } from "lucide-react";
 
-export const Route = createFileRoute("/settings")({ component: SettingsPage });
-
-function SettingsPage() {
+export default function SettingsPage() {
   const [tab, setTab] = useState<"company" | "system" | "backup">("company");
 
   return (

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,8 +6,6 @@ import { z } from "zod";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Pill } from "@/components/Pill";
 import { Logo } from "@/components/Logo";
-
-export const Route = createFileRoute("/login")({ component: LoginPage });
 
 const loginSchema = z.object({
   email: z.string().email("براہ کرم صحیح ای میل درج کریں"),
@@ -27,7 +25,7 @@ const demos = [
   { label: "Staff", email: "staff@dryfruitpro.pk", password: "staff123", color: "bg-pistachio hover:bg-pistachio/90 border-pistachio" },
 ];
 
-function LoginPage() {
+export default function LoginPage() {
   const navigate = useNavigate();
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,7 +53,7 @@ function LoginPage() {
     );
 
     if (validAccount) {
-      navigate({ to: "/" });
+      navigate("/");
     } else {
       setShake(true);
       setTimeout(() => setShake(false), 500);

@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -11,8 +10,6 @@ import { EmptyState } from "@/components/EmptyState";
 import { products as seed, type Product, type Category } from "@/data/mockData";
 import { formatPKR } from "@/lib/format";
 
-export const Route = createFileRoute("/inventory")({ component: InventoryPage });
-
 const categoryTone: Record<Category, "amber" | "pistachio" | "info" | "walnut"> = {
   Nuts: "amber", "Dried Fruits": "pistachio", Seeds: "info", Spices: "walnut",
 };
@@ -22,7 +19,7 @@ interface FormVals {
   buyPrice: number; sellPrice: number; stock: number; minStock: number; active: boolean; description?: string;
 }
 
-function InventoryPage() {
+export default function InventoryPage() {
   const [list, setList] = useState<Product[]>(seed);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("All");
