@@ -1,15 +1,90 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { Plus, Phone, Mail, Eye, Pencil, X, Truck, CheckCircle2, AlertCircle } from "lucide-react";
+import { Plus, Phone, Mail, Eye, Pencil, Truck, CheckCircle2, AlertCircle } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
-import { suppliers as seed, type Supplier } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
+import { store, type Supplier } from "@/lib/store";
+
+// --- Types ---
+
+interface SForm { 
+  name: string; 
+  contactPerson: string; 
+  phone: string; 
+  email: string; 
+  city: string; 
+  address: string; 
+  ntn: string; 
+  openingBalance: number; 
+}
+
+// --- Sub-components ---
+
+function Stat({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
+  return (
+    <div className="rounded-lg bg-cream/60 p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`font-display text-lg font-semibold ${danger ? "text-destructive" : "text-walnut"}`}>{value}</p>
+    </div>
+  );
+}
+
+function SupplierModal({ open, editing, onClose, onSave }: { open: boolean; editing?: Supplier; onClose: () => void; onSave: (v: SForm) => void }) {
+  const { register, handleSubmit, reset } = useForm<SForm>({
+    values: editing ? {
+      name: editing.name, contactPerson: editing.contactPerson, phone: editing.phone, email: editing.email,
+      city: editing.city, address: editing.address, ntn: editing.ntn, openingBalance: editing.openingBalance,
+    } : { name: "", contactPerson: "", phone: "", email: "", city: "", address: "", ntn: "", openingBalance: 0 },
+  });
+  return (
+    <Modal open={open} onClose={() => { onClose(); reset(); }} title={editing ? "Edit Supplier" : "Add Supplier"}
+      footer={<>
+        <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
+        <button onClick={handleSubmit(onSave)} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save</button>
+      </>}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[
+          ["Name", "name"], ["Contact Person", "contactPerson"], ["Phone", "phone"],
+          ["Email", "email"], ["City", "city"], ["NTN/CNIC", "ntn"],
+        ].map(([l, n]) => (
+          <div key={n}><label className="lbl">{l}</label><input {...register(n as keyof SForm)} className="input" /></div>
+        ))}
+        <div className="md:col-span-2"><label className="lbl">Address</label><input {...register("address")} className="input" /></div>
+        <div><label className="lbl">Opening Balance (PKR)</label><input type="number" {...register("openingBalance", { valueAsNumber: true })} className="input" /></div>
+      </div>
+      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:8px;padding:8px 12px;font-size:14px}.input:focus{outline:none;border-color:var(--color-amber-brand)}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
+    </Modal>
+  );
+}
+
+function PaymentModal({ supplier, onClose, onSave }: { supplier: Supplier | null; onClose: () => void; onSave: (amt: number) => void }) {
+  const { register, handleSubmit, reset } = useForm<{ amount: number; method: string; date: string; note: string }>({
+    values: { amount: supplier?.balanceDue ?? 0, method: "Cash", date: new Date().toISOString().slice(0, 10), note: "" },
+  });
+  return (
+    <Modal open={!!supplier} onClose={() => { onClose(); reset(); }} title="Record Payment" size="md"
+      footer={<>
+        <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
+        <button onClick={handleSubmit((v) => onSave(Number(v.amount)))} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save Payment</button>
+      </>}>
+      <div className="space-y-4">
+        <div><label className="lbl">Amount (PKR)</label><input type="number" {...register("amount", { valueAsNumber: true })} className="input" /></div>
+        <div><label className="lbl">Payment Method</label><select {...register("method")} className="input"><option>Cash</option><option>Bank Transfer</option><option>Cheque</option></select></div>
+        <div><label className="lbl">Date</label><input type="date" {...register("date")} className="input" /></div>
+        <div><label className="lbl">Note</label><textarea {...register("note")} rows={2} className="input" /></div>
+      </div>
+      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:8px;padding:8px 12px;font-size:14px}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
+    </Modal>
+  );
+}
+
+// --- Main Component ---
 
 export default function SupplierPage() {
-  const [list, setList] = useState<Supplier[]>(seed);
+  const [list, setList] = useState<Supplier[]>(store.getSuppliers());
   const [editing, setEditing] = useState<{ open: boolean; data?: Supplier }>({ open: false });
   const [ledger, setLedger] = useState<Supplier | null>(null);
   const [paying, setPaying] = useState<Supplier | null>(null);
@@ -22,6 +97,25 @@ export default function SupplierPage() {
   };
 
   const initials = (n: string) => n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+
+  const handleSave = async (s: SForm) => {
+    // In production, this would call store methods to sync with backend
+    if (editing.data) {
+      setList((l) => l.map((x) => (x.id === editing.data!.id ? { ...x, ...s } : x)));
+      toast.success("Supplier updated");
+    } else {
+      setList((l) => [{ id: `s${Date.now()}`, totalPurchases: 0, balanceDue: 0, status: "Paid", ...s } as Supplier, ...l]);
+      toast.success("Supplier added");
+    }
+    setEditing({ open: false });
+  };
+
+  const handlePayment = (amt: number) => {
+    if (!paying) return;
+    setList((l) => l.map((x) => x.id === paying.id ? { ...x, balanceDue: Math.max(0, x.balanceDue - amt) } : x));
+    toast.success("Payment recorded");
+    setPaying(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -70,19 +164,10 @@ export default function SupplierPage() {
         open={editing.open}
         editing={editing.data}
         onClose={() => setEditing({ open: false })}
-        onSave={(s) => {
-          if (editing.data) {
-            setList((l) => l.map((x) => (x.id === editing.data!.id ? { ...x, ...s } : x)));
-            toast.success("Supplier updated");
-          } else {
-            setList((l) => [{ id: `s${Date.now()}`, totalPurchases: 0, balanceDue: 0, status: "Paid", ...s } as Supplier, ...l]);
-            toast.success("Supplier added");
-          }
-          setEditing({ open: false });
-        }}
+        onSave={handleSave}
       />
 
-      <Modal open={!!ledger} onClose={() => setLedger(null)} title={`Ledger â€” ${ledger?.name ?? ""}`} size="xl"
+      <Modal open={!!ledger} onClose={() => setLedger(null)} title={`Ledger — ${ledger?.name ?? ""}`} size="xl"
         footer={<button onClick={() => { setPaying(ledger); }} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Record Payment</button>}>
         {ledger && (
           <div className="space-y-4">
@@ -98,16 +183,13 @@ export default function SupplierPage() {
               </tr></thead>
               <tbody>
                 {[
-                  { date: formatDate(new Date()), desc: "Opening Balance", debit: ledger.openingBalance, credit: 0, bal: ledger.openingBalance },
-                  { date: formatDate(new Date(Date.now() - 86400000 * 20)), desc: "PO-2003", debit: 145000, credit: 0, bal: 145000 + ledger.openingBalance },
-                  { date: formatDate(new Date(Date.now() - 86400000 * 15)), desc: "Payment received", debit: 0, credit: 100000, bal: 45000 + ledger.openingBalance },
-                  { date: formatDate(new Date(Date.now() - 86400000 * 8)), desc: "PO-2008", debit: ledger.balanceDue, credit: 0, bal: 45000 + ledger.openingBalance + ledger.balanceDue },
+                  { date: formatDate(new Date().toISOString()), desc: "Opening Balance", debit: ledger.openingBalance, credit: 0, bal: ledger.openingBalance },
                 ].map((r, i) => (
                   <tr key={i} className="border-t border-border">
                     <td className="p-2 text-muted-foreground">{r.date}</td>
                     <td className="p-2">{r.desc}</td>
-                    <td className="p-2 text-right tabular-nums">{r.debit ? formatPKR(r.debit) : "â€”"}</td>
-                    <td className="p-2 text-right tabular-nums text-success">{r.credit ? formatPKR(r.credit) : "â€”"}</td>
+                    <td className="p-2 text-right tabular-nums">{r.debit ? formatPKR(r.debit) : "—"}</td>
+                    <td className="p-2 text-right tabular-nums text-success">{r.credit ? formatPKR(r.credit) : "—"}</td>
                     <td className="p-2 text-right tabular-nums font-medium text-walnut">{formatPKR(r.bal)}</td>
                   </tr>
                 ))}
@@ -117,72 +199,7 @@ export default function SupplierPage() {
         )}
       </Modal>
 
-      <PaymentModal supplier={paying} onClose={() => setPaying(null)} onSave={(amt) => {
-        if (!paying) return;
-        setList((l) => l.map((x) => x.id === paying.id ? { ...x, balanceDue: Math.max(0, x.balanceDue - amt) } : x));
-        toast.success("Payment recorded");
-        setPaying(null);
-      }} />
+      <PaymentModal supplier={paying} onClose={() => setPaying(null)} onSave={handlePayment} />
     </div>
-  );
-}
-
-function Stat({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
-  return (
-    <div className="rounded-lg bg-cream/60 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`font-display text-lg font-semibold ${danger ? "text-destructive" : "text-walnut"}`}>{value}</p>
-    </div>
-  );
-}
-
-interface SForm { name: string; contactPerson: string; phone: string; email: string; city: string; address: string; ntn: string; openingBalance: number; }
-
-function SupplierModal({ open, editing, onClose, onSave }: { open: boolean; editing?: Supplier; onClose: () => void; onSave: (v: SForm) => void }) {
-  const { register, handleSubmit, reset } = useForm<SForm>({
-    values: editing ? {
-      name: editing.name, contactPerson: editing.contactPerson, phone: editing.phone, email: editing.email,
-      city: editing.city, address: editing.address, ntn: editing.ntn, openingBalance: editing.openingBalance,
-    } : { name: "", contactPerson: "", phone: "", email: "", city: "", address: "", ntn: "", openingBalance: 0 },
-  });
-  return (
-    <Modal open={open} onClose={() => { onClose(); reset(); }} title={editing ? "Edit Supplier" : "Add Supplier"}
-      footer={<>
-        <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
-        <button onClick={handleSubmit(onSave)} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save</button>
-      </>}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[
-          ["Name", "name"], ["Contact Person", "contactPerson"], ["Phone", "phone"],
-          ["Email", "email"], ["City", "city"], ["NTN/CNIC", "ntn"],
-        ].map(([l, n]) => (
-          <div key={n}><label className="lbl">{l}</label><input {...register(n as keyof SForm)} className="input" /></div>
-        ))}
-        <div className="md:col-span-2"><label className="lbl">Address</label><input {...register("address")} className="input" /></div>
-        <div><label className="lbl">Opening Balance (PKR)</label><input type="number" {...register("openingBalance", { valueAsNumber: true })} className="input" /></div>
-      </div>
-      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:8px;padding:8px 12px;font-size:14px}.input:focus{outline:none;border-color:var(--color-amber-brand)}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
-    </Modal>
-  );
-}
-
-function PaymentModal({ supplier, onClose, onSave }: { supplier: Supplier | null; onClose: () => void; onSave: (amt: number) => void }) {
-  const { register, handleSubmit, reset } = useForm<{ amount: number; method: string; date: string; note: string }>({
-    values: { amount: supplier?.balanceDue ?? 0, method: "Cash", date: new Date().toISOString().slice(0, 10), note: "" },
-  });
-  return (
-    <Modal open={!!supplier} onClose={() => { onClose(); reset(); }} title="Record Payment" size="md"
-      footer={<>
-        <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
-        <button onClick={handleSubmit((v) => onSave(Number(v.amount)))} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save Payment</button>
-      </>}>
-      <div className="space-y-4">
-        <div><label className="lbl">Amount (PKR)</label><input type="number" {...register("amount", { valueAsNumber: true })} className="input" /></div>
-        <div><label className="lbl">Payment Method</label><select {...register("method")} className="input"><option>Cash</option><option>Bank Transfer</option><option>Cheque</option></select></div>
-        <div><label className="lbl">Date</label><input type="date" {...register("date")} className="input" /></div>
-        <div><label className="lbl">Note</label><textarea {...register("note")} rows={2} className="input" /></div>
-      </div>
-      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:8px;padding:8px 12px;font-size:14px}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
-    </Modal>
   );
 }

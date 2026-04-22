@@ -6,13 +6,74 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianG
 import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
-import { financeTxns as seed, monthlyRevExp, expenseBreakdown, type FinanceTxn } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
+import { store } from "@/lib/store";
+
+// --- Constants ---
 
 const COLORS = ["var(--color-amber-brand)", "var(--color-walnut)", "var(--color-pistachio)", "var(--color-info)", "var(--color-destructive)"];
 
+// --- Types ---
+
+interface FinanceTxn {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  type: "Income" | "Expense" | "Transfer";
+  amount: number;
+  reference: string;
+  addedBy: string;
+  method: string;
+  notes?: string;
+}
+
+interface TxnForm { 
+  type: "Income" | "Expense" | "Transfer"; 
+  category: string; 
+  amount: number; 
+  date: string; 
+  description: string; 
+  reference: string; 
+  method: string; 
+  notes: string; 
+}
+
+// --- Sub-components ---
+
+function AddTxnModal({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (t: Omit<FinanceTxn, "id" | "addedBy">) => void }) {
+  const { register, handleSubmit, reset } = useForm<TxnForm>({
+    defaultValues: { type: "Expense", category: "Salary", amount: 0, date: new Date().toISOString().slice(0, 10), description: "", reference: "", method: "Cash", notes: "" },
+  });
+  return (
+    <Modal open={open} onClose={() => { onClose(); reset(); }} title="Add Transaction" size="md"
+      footer={<>
+        <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
+        <button onClick={handleSubmit((v) => onSave(v))} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save</button>
+      </>}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="lbl">Type</label><select {...register("type")} className="input"><option>Income</option><option>Expense</option><option>Transfer</option></select></div>
+          <div><label className="lbl">Category</label><select {...register("category")} className="input"><option>Sales Revenue</option><option>Other Income</option><option>Purchase Cost</option><option>Salary</option><option>Rent</option><option>Utilities</option><option>Misc</option></select></div>
+          <div><label className="lbl">Amount</label><input type="number" {...register("amount", { valueAsNumber: true })} className="input" /></div>
+          <div><label className="lbl">Date</label><input type="date" {...register("date")} className="input" /></div>
+        </div>
+        <div><label className="lbl">Description</label><input {...register("description")} className="input" /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="lbl">Reference#</label><input {...register("reference")} className="input" /></div>
+          <div><label className="lbl">Payment Method</label><select {...register("method")} className="input"><option>Cash</option><option>Bank Transfer</option><option>Cheque</option></select></div>
+        </div>
+        <div><label className="lbl">Notes</label><textarea {...register("notes")} rows={2} className="input" /></div>
+      </div>
+      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:8px;padding:8px 12px;font-size:14px}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
+    </Modal>
+  );
+}
+
+// --- Main Component ---
+
 export default function FinancePage() {
-  const [list, setList] = useState<FinanceTxn[]>(seed);
+  const [list, setList] = useState<FinanceTxn[]>([]); // To be populated from store/API
   const [range, setRange] = useState("This Month");
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState({ type: "All", category: "All", from: "", to: "" });
@@ -30,6 +91,27 @@ export default function FinancePage() {
     (!filter.to || new Date(t.date) <= new Date(filter.to))
   );
 
+  const handleSaveTxn = async (t: Omit<FinanceTxn, "id" | "addedBy">) => {
+    // In production, this would call store.addFinanceTransaction(t)
+    const newTxn = { ...t, id: `fin-${Date.now()}`, addedBy: "System Admin" } as FinanceTxn;
+    setList((l) => [newTxn, ...l]);
+    setShowAdd(false);
+    toast.success("Transaction added");
+  };
+
+  // Mock chart data structure (to be populated from real data)
+  const monthlyRevExp = useMemo(() => [
+    { month: "Jan", revenue: 0, expense: 0 },
+    { month: "Feb", revenue: 0, expense: 0 },
+    { month: "Mar", revenue: 0, expense: 0 },
+  ], []);
+
+  const expenseBreakdown = useMemo(() => [
+    { name: "Rent", value: 0 },
+    { name: "Salary", value: 0 },
+    { name: "Misc", value: 0 },
+  ], []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -40,7 +122,7 @@ export default function FinancePage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Revenue" value={formatPKR(totals.income)} tone="success" icon={<TrendingUp className="h-5 w-5" />} trend={{ value: "8.2%", up: true }} />
+        <StatCard label="Total Revenue" value={formatPKR(totals.income)} tone="success" icon={<TrendingUp className="h-5 w-5" />} />
         <StatCard label="Total Expenses" value={formatPKR(totals.expense)} tone="danger" icon={<TrendingDown className="h-5 w-5" />} />
         <StatCard label="Net Profit" value={formatPKR(totals.profit)} tone={totals.profit > 0 ? "amber" : "danger"} icon={<DollarSign className="h-5 w-5" />} />
         <StatCard label="Cash in Hand" value={formatPKR(totals.cash)} tone="info" icon={<Wallet className="h-5 w-5" />} />
@@ -112,74 +194,19 @@ export default function FinancePage() {
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <div>
-        <h3 className="font-display text-lg font-semibold text-walnut mb-3">Financial Reports</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { title: "Daily Report", desc: "Today's income, expense, and net cash flow", value: formatPKR(totals.income / 30) },
-            { title: "Weekly Report", desc: "Last 7 days summary", value: formatPKR(totals.income / 4) },
-            { title: "Monthly P&L", desc: "Profit and loss for current month", value: formatPKR(totals.profit) },
-          ].map((r) => (
-            <div key={r.title} className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-display font-semibold text-walnut">{r.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{r.desc}</p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-brand/10 text-amber-brand"><FileText className="h-5 w-5" /></div>
-              </div>
-              <p className="font-display text-2xl font-bold text-walnut mt-4">{r.value}</p>
-              <div className="flex gap-2 mt-4">
-                <button className="flex-1 inline-flex items-center justify-center gap-1 rounded-md bg-amber-brand px-3 py-2 text-xs font-medium text-amber-brand-foreground hover:opacity-90"><Download className="h-3 w-3" /> Excel</button>
-                <button className="flex-1 inline-flex items-center justify-center gap-1 rounded-md bg-walnut px-3 py-2 text-xs font-medium text-cream hover:opacity-90"><Download className="h-3 w-3" /> PDF</button>
-              </div>
+          {filtered.length === 0 && (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">No transactions found</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
-
+      
       <AddTxnModal
         open={showAdd}
         onClose={() => setShowAdd(false)}
-        onSave={(t) => {
-          setList((l) => [t, ...l]);
-          setShowAdd(false);
-          toast.success("Transaction added");
-        }}
+        onSave={handleSaveTxn}
       />
     </div>
-  );
-}
-
-interface TxnForm { type: "Income" | "Expense" | "Transfer"; category: string; amount: number; date: string; description: string; reference: string; method: string; notes: string; }
-function AddTxnModal({ open, onClose, onSave }: { open: boolean; onClose: () => void; onSave: (t: FinanceTxn) => void }) {
-  const { register, handleSubmit, reset } = useForm<TxnForm>({
-    defaultValues: { type: "Expense", category: "Salary", amount: 0, date: new Date().toISOString().slice(0, 10), description: "", reference: "", method: "Cash", notes: "" },
-  });
-  return (
-    <Modal open={open} onClose={() => { onClose(); reset(); }} title="Add Transaction" size="md"
-      footer={<>
-        <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
-        <button onClick={handleSubmit((v) => onSave({ id: `fin-${Date.now()}`, ...v, amount: Number(v.amount), addedBy: "Imran Khan" }))} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save</button>
-      </>}>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="lbl">Type</label><select {...register("type")} className="input"><option>Income</option><option>Expense</option><option>Transfer</option></select></div>
-          <div><label className="lbl">Category</label><select {...register("category")} className="input"><option>Sales Revenue</option><option>Other Income</option><option>Purchase Cost</option><option>Salary</option><option>Rent</option><option>Utilities</option><option>Misc</option></select></div>
-          <div><label className="lbl">Amount</label><input type="number" {...register("amount", { valueAsNumber: true })} className="input" /></div>
-          <div><label className="lbl">Date</label><input type="date" {...register("date")} className="input" /></div>
-        </div>
-        <div><label className="lbl">Description</label><input {...register("description")} className="input" /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="lbl">Reference#</label><input {...register("reference")} className="input" /></div>
-          <div><label className="lbl">Payment Method</label><select {...register("method")} className="input"><option>Cash</option><option>Bank Transfer</option><option>Cheque</option></select></div>
-        </div>
-        <div><label className="lbl">Notes</label><textarea {...register("notes")} rows={2} className="input" /></div>
-      </div>
-      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:8px;padding:8px 12px;font-size:14px}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
-    </Modal>
   );
 }

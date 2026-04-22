@@ -6,63 +6,25 @@ import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
 import { SearchInput } from "@/components/SearchInput";
 import { EmptyState } from "@/components/EmptyState";
-import { products as seedP, stockMovements as seedM, type Product } from "@/data/mockData";
 import { formatPKR, formatDateTime } from "@/lib/format";
+import { store, type Product } from "@/lib/store";
 
-export default function StockPage() {
-  const [tab, setTab] = useState<"overview" | "history">("overview");
-  const [products, setProducts] = useState(seedP);
-  const [movements, setMovements] = useState(seedM);
-  const [adjusting, setAdjusting] = useState<Product | null>(null);
+// --- Types ---
 
-  return (
-    <div className="space-y-6">
-      <div className="flex gap-1 rounded-lg border border-border bg-card p-1 w-fit shadow-sm">
-        {(["overview", "history"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${tab === t ? "bg-amber-brand text-amber-brand-foreground" : "text-walnut hover:bg-cream"}`}
-          >
-            {t === "overview" ? "Stock Overview" : "Movement History"}
-          </button>
-        ))}
-      </div>
-
-      {tab === "overview" ? (
-        <Overview products={products} onAdjust={setAdjusting} />
-      ) : (
-        <History movements={movements} />
-      )}
-
-      <AdjustModal
-        product={adjusting}
-        onClose={() => setAdjusting(null)}
-        onSave={(qty, reason) => {
-          if (!adjusting) return;
-          setProducts((l) => l.map((p) => (p.id === adjusting.id ? { ...p, stock: qty } : p)));
-          setMovements((m) => [
-            {
-              id: `sm-${Date.now()}`,
-              date: new Date().toISOString(),
-              productId: adjusting.id,
-              productName: adjusting.name,
-              type: "Adjustment",
-              qty: Math.abs(qty - adjusting.stock),
-              prevStock: adjusting.stock,
-              newStock: qty,
-              reason,
-              doneBy: "Imran Khan",
-            },
-            ...m,
-          ]);
-          toast.success("Stock adjusted");
-          setAdjusting(null);
-        }}
-      />
-    </div>
-  );
+interface StockMovement {
+  id: string;
+  date: string;
+  productId: string;
+  productName: string;
+  type: "In" | "Out" | "Adjustment" | "Return" | "Damaged";
+  qty: number;
+  prevStock: number;
+  newStock: number;
+  reason: string;
+  doneBy: string;
 }
+
+// --- Sub-components ---
 
 function Overview({ products, onAdjust }: { products: Product[]; onAdjust: (p: Product) => void }) {
   return (
@@ -120,7 +82,7 @@ function Overview({ products, onAdjust }: { products: Product[]; onAdjust: (p: P
   );
 }
 
-function History({ movements }: { movements: typeof seedM }) {
+function History({ movements }: { movements: StockMovement[] }) {
   const [q, setQ] = useState("");
   const [type, setType] = useState("All");
   const [from, setFrom] = useState("");
@@ -200,7 +162,7 @@ function History({ movements }: { movements: typeof seedM }) {
 
         {filtered.length > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
-            <p className="text-xs text-muted-foreground">Showing {(page - 1) * perPage + 1}â€“{Math.min(page * perPage, filtered.length)} of {filtered.length}</p>
+            <p className="text-xs text-muted-foreground">Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}</p>
             <div className="flex gap-1">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-md border border-border px-3 py-1 text-sm hover:bg-cream disabled:opacity-50">Prev</button>
               {Array.from({ length: pages }).map((_, i) => (
@@ -249,5 +211,72 @@ function AdjustModal({ product, onClose, onSave }: { product: Product | null; on
         </div>
       </div>
     </Modal>
+  );
+}
+
+// --- Main Component ---
+
+export default function StockPage() {
+  const [tab, setTab] = useState<"overview" | "history">("overview");
+  const [products, setProducts] = useState<Product[]>(store.getProducts());
+  const [movements, setMovements] = useState<StockMovement[]>([]); // To be populated from store
+  const [adjusting, setAdjusting] = useState<Product | null>(null);
+
+  const handleAdjust = async (qty: number, reason: string) => {
+    if (!adjusting) return;
+    
+    try {
+      // In production, this would call store.adjustStock(...) which updates backend
+      // and creates a StockMovement record.
+      await store.updateProduct(adjusting.id, { stock: qty });
+      setProducts(store.getProducts());
+      
+      const newMovement: StockMovement = {
+        id: `sm-${Date.now()}`,
+        date: new Date().toISOString(),
+        productId: adjusting.id,
+        productName: adjusting.name,
+        type: "Adjustment",
+        qty: Math.abs(qty - adjusting.stock),
+        prevStock: adjusting.stock,
+        newStock: qty,
+        reason,
+        doneBy: "System Admin",
+      };
+      
+      setMovements((m) => [newMovement, ...m]);
+      toast.success("Stock adjusted");
+      setAdjusting(null);
+    } catch (error) {
+      toast.error("Failed to adjust stock");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 rounded-lg border border-border bg-card p-1 w-fit shadow-sm">
+        {(["overview", "history"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${tab === t ? "bg-amber-brand text-amber-brand-foreground" : "text-walnut hover:bg-cream"}`}
+          >
+            {t === "overview" ? "Stock Overview" : "Movement History"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "overview" ? (
+        <Overview products={products} onAdjust={setAdjusting} />
+      ) : (
+        <History movements={movements} />
+      )}
+
+      <AdjustModal
+        product={adjusting}
+        onClose={() => setAdjusting(null)}
+        onSave={handleAdjust}
+      />
+    </div>
   );
 }

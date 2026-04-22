@@ -4,32 +4,15 @@ import { Search, Minus, Plus, Trash2, Printer, Eye } from "lucide-react";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
 import { EmptyState } from "@/components/EmptyState";
-import { products, sales as seedSales, type Sale } from "@/data/mockData";
 import { formatPKR, formatDate } from "@/lib/format";
+import { store, type Sale, type Product } from "@/lib/store";
+import { TransactionRow, StatusPill } from "@/components/TransactionUtils";
 
 interface CartItem { productId: string; name: string; qty: number; price: number; unit: string; }
 
-export default function SalesPage() {
-  const [tab, setTab] = useState<"new" | "history">("new");
-  const [list, setList] = useState<Sale[]>(seedSales);
+// --- Sub-components ---
 
-  return (
-    <div className="space-y-6">
-      <div className="flex gap-1 rounded-lg border border-border bg-card p-1 w-fit shadow-sm">
-        {(["new", "history"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`rounded-md px-4 py-2 text-sm font-medium ${tab === t ? "bg-amber-brand text-amber-brand-foreground" : "text-walnut hover:bg-cream"}`}>
-            {t === "new" ? "New Sale" : "Sales History"}
-          </button>
-        ))}
-      </div>
-      {tab === "new"
-        ? <NewSale onComplete={(s) => { setList((l) => [s, ...l]); toast.success(`Sale completed â€” ${s.invoice}`); }} />
-        : <History list={list} />}
-    </div>
-  );
-}
-
-function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
+function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) => void, products: Product[] }) {
   const [q, setQ] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState("");
@@ -46,11 +29,13 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()));
 
-  const add = (p: typeof products[number]) => {
-    if (p.stock === 0) return;
+  const add = (p: Product) => {
+    if (p.stock <= 0) {
+      toast.error("Maal khatam hai (Out of stock)");
+      return;
+    }
     setCart((c) => {
       const ex = c.find((x) => x.productId === p.id);
-      // kg mein 0.5 increment, gram mein 100g increment, baqi mein 1
       const increment = p.unit === "kg" ? 0.5 : p.unit === "g" ? 100 : 1;
       if (ex) return c.map((x) => (x.productId === p.id ? { ...x, qty: x.qty + increment } : x));
       return [...c, { productId: p.id, name: p.name, qty: increment, price: p.sellPrice, unit: p.unit }];
@@ -60,15 +45,13 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
   const setQty = (id: string, delta: number) => {
     const item = cart.find((x) => x.productId === id);
     if (!item) return;
-    // kg mein 0.5 increment, gram mein 100g increment, baqi mein 1
     const increment = item.unit === "kg" ? 0.5 : item.unit === "g" ? 100 : 1;
     setCart((c) => c.map((x) => x.productId === id ? { ...x, qty: Math.max(increment, x.qty + (delta * increment)) } : x));
   };
 
   const complete = () => {
     if (cart.length === 0) { toast.error("Cart is empty"); return; }
-    const sale: Sale = {
-      id: `sale-${Date.now()}`,
+    const sale: Omit<Sale, "id"> = {
       invoice: `INV-${Math.floor(Math.random() * 9000) + 2000}`,
       date: new Date().toISOString().slice(0, 10),
       customer: customer || "Walk-in Customer",
@@ -90,7 +73,7 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto">
           {filtered.map((p) => {
-            const out = p.stock === 0;
+            const out = p.stock <= 0;
             return (
               <button key={p.id} disabled={out} onClick={() => add(p)} className={`rounded-xl border border-border bg-cream/40 p-3 text-left transition ${out ? "opacity-40 cursor-not-allowed" : "hover:border-amber-brand hover:shadow-md hover:bg-card"}`}>
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-brand/10 text-amber-brand text-sm font-semibold mb-2">{p.name[0]}</div>
@@ -118,7 +101,7 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
             <div key={c.productId} className="flex items-center gap-2 rounded-lg bg-cream/60 p-2">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-walnut truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} Ã— {c.qty} {c.unit}</p>
+                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} × {c.qty} {c.unit}</p>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setQty(c.productId, -1)} className="rounded-md border border-border p-1 text-walnut hover:bg-cream"><Minus className="h-3 w-3" /></button>
@@ -129,14 +112,6 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
                     const val = Number(e.target.value);
                     if (val > 0) {
                       setCart((cc) => cc.map((x) => x.productId === c.productId ? { ...x, qty: val } : x));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    // Agar empty ya 0 hai toh minimum value set karo
-                    const val = Number(e.target.value);
-                    if (!val || val <= 0) {
-                      const minVal = c.unit === "kg" ? 0.5 : c.unit === "g" ? 50 : 1;
-                      setCart((cc) => cc.map((x) => x.productId === c.productId ? { ...x, qty: minVal } : x));
                     }
                   }}
                   className="w-16 text-center text-sm font-medium text-walnut tabular-nums border border-border rounded px-1 py-0.5 focus:outline-none focus:border-amber-brand focus:ring-1 focus:ring-amber-brand"
@@ -151,7 +126,7 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
         </div>
 
         <div className="space-y-2 border-t border-border pt-3 text-sm">
-          <Row label="Subtotal" value={formatPKR(subtotal)} />
+          <TransactionRow label="Subtotal" value={formatPKR(subtotal)} />
           <div className="flex items-center justify-between text-muted-foreground">
             <span>Discount</span>
             <input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value) || 0)} className="w-24 rounded-md border border-border bg-card px-2 py-1 text-right text-sm" />
@@ -160,7 +135,7 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
             <span>Tax (%)</span>
             <input type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value) || 0)} className="w-24 rounded-md border border-border bg-card px-2 py-1 text-right text-sm" />
           </div>
-          <Row label="Grand Total" value={formatPKR(total)} bold />
+          <TransactionRow label="Grand Total" value={formatPKR(total)} bold />
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg border border-border p-1 bg-cream/40">
@@ -187,14 +162,6 @@ function NewSale({ onComplete }: { onComplete: (s: Sale) => void }) {
         </button>
         <button className="mt-2 w-full rounded-lg border border-border py-2 text-sm font-medium text-walnut hover:bg-cream inline-flex items-center justify-center gap-2"><Printer className="h-4 w-4" /> Print Invoice</button>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className={`flex justify-between ${bold ? "border-t border-border pt-2 text-base font-semibold text-walnut" : "text-muted-foreground"}`}>
-      <span>{label}</span><span className="tabular-nums text-walnut">{value}</span>
     </div>
   );
 }
@@ -251,7 +218,7 @@ function History({ list }: { list: Sale[] }) {
                   <td className="p-3 text-right tabular-nums">{formatPKR(s.tax)}</td>
                   <td className="p-3 text-right font-medium text-walnut">{formatPKR(s.total)}</td>
                   <td className="p-3 text-muted-foreground">{s.payment}</td>
-                  <td className="p-3"><Pill tone={s.status === "Paid" ? "success" : s.status === "Credit" ? "amber" : "danger"}>{s.status}</Pill></td>
+                  <td className="p-3"><StatusPill type="sale" status={s.status} /></td>
                   <td className="p-3 text-right">
                     <button onClick={() => setView(s)} className="rounded-md p-1.5 text-info hover:bg-info/10"><Eye className="h-4 w-4" /></button>
                   </td>
@@ -280,19 +247,53 @@ function History({ list }: { list: Sale[] }) {
             <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
               <thead className="bg-cream"><tr><th className="text-left p-2">Item</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Price</th><th className="text-right p-2">Total</th></tr></thead>
               <tbody>{view.items.map((it, i) => (
-                <tr key={i} className="border-t border-border"><td className="p-2">{it.name}</td><td className="p-2 text-right">{it.qty} {it.unit || 'pcs'}</td><td className="p-2 text-right">{formatPKR(it.price)}</td><td className="p-2 text-right">{formatPKR(it.qty * it.price)}</td></tr>
+                <tr key={it.productId + i} className="border-t border-border"><td className="p-2">{it.name}</td><td className="p-2 text-right">{it.qty} {it.unit || 'pcs'}</td><td className="p-2 text-right">{formatPKR(it.price)}</td><td className="p-2 text-right">{formatPKR(it.qty * it.price)}</td></tr>
               ))}</tbody>
             </table>
             <div className="ml-auto w-64 mt-4 space-y-1 text-sm">
-              <Row label="Subtotal" value={formatPKR(view.subtotal)} />
-              <Row label="Discount" value={`- ${formatPKR(view.discount)}`} />
-              <Row label="Tax" value={formatPKR(view.tax)} />
-              <Row label="Grand Total" value={formatPKR(view.total)} bold />
+              <TransactionRow label="Subtotal" value={formatPKR(view.subtotal)} />
+              <TransactionRow label="Discount" value={`- ${formatPKR(view.discount)}`} />
+              <TransactionRow label="Tax" value={formatPKR(view.tax)} />
+              <TransactionRow label="Grand Total" value={formatPKR(view.total)} bold />
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border">Shukriya for your business â€” Aap ka muamal, hamare haath mein.</p>
+            <p className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border">Shukriya for your business — Aap ka muamal, hamare haath mein.</p>
           </div>
         )}
       </Modal>
+    </div>
+  );
+}
+
+// --- Main Component ---
+
+export default function SalesPage() {
+  const [tab, setTab] = useState<"new" | "history">("new");
+  const [list, setList] = useState<Sale[]>(store.getSales());
+  const [products, setProducts] = useState<Product[]>(store.getProducts());
+
+  const handleComplete = async (s: Omit<Sale, "id">) => {
+    try {
+      await store.addSale(s);
+      setList(store.getSales());
+      setProducts(store.getProducts());
+      toast.success(`Sale completed — ${s.invoice}`);
+    } catch (error) {
+      toast.error("Failed to complete sale");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 rounded-lg border border-border bg-card p-1 w-fit shadow-sm">
+        {(["new", "history"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className={`rounded-md px-4 py-2 text-sm font-medium ${tab === t ? "bg-amber-brand text-amber-brand-foreground" : "text-walnut hover:bg-cream"}`}>
+            {t === "new" ? "New Sale" : "Sales History"}
+          </button>
+        ))}
+      </div>
+      {tab === "new"
+        ? <NewSale onComplete={handleComplete} products={products} />
+        : <History list={list} />}
     </div>
   );
 }
