@@ -1,11 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { 
   Users as UsersIcon, 
   ShoppingCart, 
   TrendingUp, 
   Boxes,
-  ArrowUpRight,
-  ArrowDownRight
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -15,48 +13,28 @@ import {
   YAxis, 
   Tooltip, 
   CartesianGrid,
-  BarChart,
-  Bar
 } from "recharts";
 import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
 import { formatPKR, formatDate } from "@/lib/format";
-import { store, type Sale, type Product } from "@/lib/store";
+import { store, type DashboardData } from "@/lib/store";
 
 export default function DashboardPage() {
-  const [sales] = useState<Sale[]>(store.getSales());
-  const [products] = useState<Product[]>(store.getProducts());
+  const [data, setData] = useState<DashboardData | null>(store.getDashboard());
 
-  const stats = useMemo(() => {
-    const totalRevenue = sales.reduce((s, x) => s + x.total, 0);
-    const totalOrders = sales.length;
-    const lowStock = products.filter(p => p.stock < p.minStock).length;
-    
-    return {
-      revenue: totalRevenue,
-      orders: totalOrders,
-      lowStock: lowStock,
-      customers: new Set(sales.map(s => s.customer)).size
-    };
-  }, [sales, products]);
+  useEffect(() => {
+    setData(store.getDashboard());
+  }, []);
 
-  const recentSales = useMemo(() => sales.slice(0, 5), [sales]);
-  
-  const chartData = useMemo(() => {
-    // Group sales by date for the last 7 days
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().slice(0, 10);
-    });
+  if (!data) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-amber-brand border-t-transparent"></div>
+      </div>
+    );
+  }
 
-    return days.map(date => ({
-      date: formatDate(date),
-      revenue: sales
-        .filter(s => s.date.startsWith(date))
-        .reduce((sum, s) => sum + s.total, 0)
-    }));
-  }, [sales]);
+  const { stats, chartData, recentSales } = data;
 
   return (
     <div className="space-y-6">
@@ -104,6 +82,7 @@ export default function DashboardPage() {
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v/1000}k`} />
                 <Tooltip 
                   formatter={(v) => formatPKR(Number(v))}
+                  labelFormatter={(label) => formatDate(label)}
                   contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8 }}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="var(--color-amber-brand)" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />

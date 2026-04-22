@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Plus, Pencil, Trash2, Package, AlertTriangle, XCircle, DollarSign } from "lucide-react";
@@ -19,8 +19,17 @@ const categoryTone: Record<Category, "amber" | "pistachio" | "info" | "walnut"> 
 };
 
 interface FormVals {
-  name: string; sku: string; category: Category; unit: "kg" | "g" | "pack";
-  buyPrice: number; sellPrice: number; stock: number; minStock: number; active: boolean; description?: string;
+  name: string; 
+  urdu: string;
+  sku: string; 
+  category: Category; 
+  unit: "kg" | "g" | "pack";
+  buyPrice: number; 
+  sellPrice: number; 
+  stock: number; 
+  minStock: number; 
+  active: boolean; 
+  description?: string;
 }
 
 // --- Sub-components ---
@@ -37,10 +46,20 @@ function Field({ label, error, children, className = "" }: { label: string; erro
 
 function ProductModal({ open, editing, onClose, onSave }: { open: boolean; editing?: Product; onClose: () => void; onSave: (v: FormVals) => void }) {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormVals>({
-    values: editing
+    defaultValues: editing
       ? { ...editing as any }
-      : { name: "", sku: `DF-NEW-${Date.now().toString().slice(-4)}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" },
+      : { name: "", urdu: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" },
   });
+
+  // Reset form when editing changes or modal opens/closes
+  useEffect(() => {
+    if (open) {
+      reset(editing 
+        ? { ...editing as any } 
+        : { name: "", urdu: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" }
+      );
+    }
+  }, [open, editing, reset]);
 
   return (
     <Modal
@@ -55,8 +74,11 @@ function ProductModal({ open, editing, onClose, onSave }: { open: boolean; editi
       }
     >
       <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Product Name" error={errors.name?.message}>
-          <input {...register("name", { required: "Name is required" })} className="input" />
+        <Field label="English Name" error={errors.name?.message}>
+          <input {...register("name", { required: "English name is required" })} className="input" placeholder="e.g. Almonds" />
+        </Field>
+        <Field label="Urdu Name">
+          <input {...register("urdu")} className="input text-right font-urdu" dir="rtl" placeholder="??? ???? ???" />
         </Field>
         <Field label="SKU"><input {...register("sku")} className="input" /></Field>
         <Field label="Category">
@@ -96,6 +118,10 @@ export default function InventoryPage() {
   const [sort, setSort] = useState<string>("name");
   const [modal, setModal] = useState<{ open: boolean; editing?: Product }>({ open: false });
 
+  useEffect(() => {
+    setList(store.getProducts());
+  }, []);
+
   const filtered = useMemo(() => {
     let r = list.filter((p) =>
       (cat === "All" || p.category === cat) &&
@@ -116,7 +142,7 @@ export default function InventoryPage() {
     if (!confirm("Are you sure you want to delete this product?")) return;
     try {
       await store.deleteProduct(id);
-      setList(store.getProducts());
+      setList([...store.getProducts()]);
       toast.success("Product deleted");
     } catch (error) {
       toast.error("Failed to delete product");
@@ -132,7 +158,7 @@ export default function InventoryPage() {
         await store.addProduct(vals as any);
         toast.success("Product added");
       }
-      setList(store.getProducts());
+      setList([...store.getProducts()]);
       setModal({ open: false });
     } catch (error) {
       toast.error("Failed to save product");
@@ -202,7 +228,7 @@ export default function InventoryPage() {
                     <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-walnut">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{p.urdu}</p>
+                      <p className="text-xs text-muted-foreground font-urdu" dir="rtl">{p.urdu}</p>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.sku}</td>
                     <td className="px-4 py-3"><Pill tone={categoryTone[p.category as Category]}>{p.category}</Pill></td>

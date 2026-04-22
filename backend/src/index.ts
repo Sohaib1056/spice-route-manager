@@ -10,6 +10,8 @@ import productRoutes from "./routes/productRoutes";
 import supplierRoutes from "./routes/supplierRoutes";
 import saleRoutes from "./routes/saleRoutes";
 import purchaseRoutes from "./routes/purchaseRoutes";
+import dashboardRoutes from "./routes/dashboardRoutes";
+import stockRoutes from "./routes/stockRoutes";
 
 dotenv.config();
 
@@ -29,6 +31,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/suppliers", supplierRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/purchases", purchaseRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/stock", stockRoutes);
 
 app.get("/", (req, res) => {
   res.send("Spice Route Manager API is running...");

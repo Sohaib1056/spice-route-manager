@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { ArrowDown, ArrowUp, RefreshCw, RotateCcw, X } from "lucide-react";
@@ -7,22 +7,7 @@ import { Modal } from "@/components/Modal";
 import { SearchInput } from "@/components/SearchInput";
 import { EmptyState } from "@/components/EmptyState";
 import { formatPKR, formatDateTime } from "@/lib/format";
-import { store, type Product } from "@/lib/store";
-
-// --- Types ---
-
-interface StockMovement {
-  id: string;
-  date: string;
-  productId: string;
-  productName: string;
-  type: "In" | "Out" | "Adjustment" | "Return" | "Damaged";
-  qty: number;
-  prevStock: number;
-  newStock: number;
-  reason: string;
-  doneBy: string;
-}
+import { store, type Product, type StockMovement } from "@/lib/store";
 
 // --- Sub-components ---
 
@@ -219,32 +204,21 @@ function AdjustModal({ product, onClose, onSave }: { product: Product | null; on
 export default function StockPage() {
   const [tab, setTab] = useState<"overview" | "history">("overview");
   const [products, setProducts] = useState<Product[]>(store.getProducts());
-  const [movements, setMovements] = useState<StockMovement[]>([]); // To be populated from store
+  const [movements, setMovements] = useState<StockMovement[]>(store.getMovements());
   const [adjusting, setAdjusting] = useState<Product | null>(null);
+
+  useEffect(() => {
+    setProducts(store.getProducts());
+    setMovements(store.getMovements());
+  }, []);
 
   const handleAdjust = async (qty: number, reason: string) => {
     if (!adjusting) return;
     
     try {
-      // In production, this would call store.adjustStock(...) which updates backend
-      // and creates a StockMovement record.
-      await store.updateProduct(adjusting.id, { stock: qty });
+      await store.adjustStock(adjusting.id, qty, reason);
       setProducts(store.getProducts());
-      
-      const newMovement: StockMovement = {
-        id: `sm-${Date.now()}`,
-        date: new Date().toISOString(),
-        productId: adjusting.id,
-        productName: adjusting.name,
-        type: "Adjustment",
-        qty: Math.abs(qty - adjusting.stock),
-        prevStock: adjusting.stock,
-        newStock: qty,
-        reason,
-        doneBy: "System Admin",
-      };
-      
-      setMovements((m) => [newMovement, ...m]);
+      setMovements(store.getMovements());
       toast.success("Stock adjusted");
       setAdjusting(null);
     } catch (error) {

@@ -3,6 +3,7 @@ import axios from "axios";
 // Data types only
 export interface Product {
   id: string;
+  _id?: string;
   name: string;
   urdu: string;
   sku: string;
@@ -18,6 +19,7 @@ export interface Product {
 
 export interface Supplier {
   id: string;
+  _id?: string;
   name: string;
   contactPerson: string;
   phone: string;
@@ -33,6 +35,7 @@ export interface Supplier {
 
 export interface Sale {
   id: string;
+  _id?: string;
   invoice: string;
   date: string;
   customer: string;
@@ -54,6 +57,7 @@ export interface Sale {
 
 export interface Purchase {
   id: string;
+  _id?: string;
   po: string;
   date: string;
   supplierId: string;
@@ -79,9 +83,40 @@ export interface Purchase {
   };
 }
 
+export interface StockMovement {
+  id: string;
+  _id?: string;
+  productId: string;
+  productName: string;
+  type: "In" | "Out" | "Adjustment" | "Return" | "Damaged";
+  qty: number;
+  prevStock: number;
+  newStock: number;
+  reason: string;
+  doneBy: string;
+  date: string;
+}
+
+export interface DashboardData {
+  stats: {
+    revenue: number;
+    orders: number;
+    lowStock: number;
+    customers: number;
+  };
+  chartData: Array<{ date: string; revenue: number }>;
+  recentSales: Sale[];
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
 });
+
+// Helper to normalize MongoDB _id to id
+const normalize = (item: any) => {
+  if (!item) return item;
+  return { ...item, id: item._id || item.id };
+};
 
 class DataStore {
   private static instance: DataStore;
@@ -89,6 +124,8 @@ class DataStore {
   private suppliers: Supplier[] = [];
   private sales: Sale[] = [];
   private purchases: Purchase[] = [];
+  private movements: StockMovement[] = [];
+  private dashboard: DashboardData | null = null;
 
   private constructor() {}
 
@@ -101,16 +138,23 @@ class DataStore {
 
   async init() {
     try {
-      const [prodRes, suppRes, saleRes, purRes] = await Promise.all([
+      const [prodRes, suppRes, saleRes, purRes, moveRes, dashRes] = await Promise.all([
         api.get("/products"),
         api.get("/suppliers"),
         api.get("/sales"),
         api.get("/purchases"),
+        api.get("/stock/movements"),
+        api.get("/dashboard/stats"),
       ]);
-      this.products = prodRes.data;
-      this.suppliers = suppRes.data;
-      this.sales = saleRes.data;
-      this.purchases = purRes.data;
+      this.products = prodRes.data.map(normalize);
+      this.suppliers = suppRes.data.map(normalize);
+      this.sales = saleRes.data.map(normalize);
+      this.purchases = purRes.data.map(normalize);
+      this.movements = moveRes.data.map(normalize);
+      this.dashboard = {
+        ...dashRes.data,
+        recentSales: dashRes.data.recentSales.map(normalize)
+      };
     } catch (error) {
       console.error("Failed to initialize store from API", error);
     }
@@ -120,17 +164,20 @@ class DataStore {
   getSuppliers() { return this.suppliers; }
   getSales() { return this.sales; }
   getPurchases() { return this.purchases; }
+  getMovements() { return this.movements; }
+  getDashboard() { return this.dashboard; }
 
   async addSale(sale: Omit<Sale, "id">) {
     try {
       const res = await api.post("/sales", sale);
-      const newSale = res.data;
+      const newSale = normalize(res.data);
       this.sales = [newSale, ...this.sales];
       
       newSale.items.forEach((item: any) => {
-        const product = this.products.find(p => p.id === item.productId || (p as any)._id === item.productId);
+        const product = this.products.find(p => p.id === item.productId);
         if (product) product.stock -= item.qty;
       });
+      await this.refreshDashboard();
       return newSale;
     } catch (error) {
       console.error("Error adding sale", error);
@@ -141,15 +188,16 @@ class DataStore {
   async addPurchase(purchase: Omit<Purchase, "id">) {
     try {
       const res = await api.post("/purchases", purchase);
-      const newPurchase = res.data;
+      const newPurchase = normalize(res.data);
       this.purchases = [newPurchase, ...this.purchases];
       
       if (newPurchase.status === "Received") {
         newPurchase.items.forEach((item: any) => {
-          const product = this.products.find(p => p.id === item.productId || (p as any)._id === item.productId);
+          const product = this.products.find(p => p.id === item.productId);
           if (product) product.stock += item.qty;
         });
       }
+      await this.refreshDashboard();
       return newPurchase;
     } catch (error) {
       console.error("Error adding purchase", error);
@@ -160,15 +208,14 @@ class DataStore {
   async receivePurchase(id: string) {
     try {
       const res = await api.put(`/purchases/${id}/receive`);
-      const updatedPurchase = res.data;
-      this.purchases = this.purchases.map(p => 
-        (p.id === id || (p as any)._id === id) ? updatedPurchase : p
-      );
+      const updatedPurchase = normalize(res.data);
+      this.purchases = this.purchases.map(p => p.id === id ? updatedPurchase : p);
       
       updatedPurchase.items.forEach((item: any) => {
-        const product = this.products.find(p => p.id === item.productId || (p as any)._id === item.productId);
+        const product = this.products.find(p => p.id === item.productId);
         if (product) product.stock += item.qty;
       });
+      await this.refreshDashboard();
       return updatedPurchase;
     } catch (error) {
       console.error("Error receiving purchase", error);
@@ -179,8 +226,10 @@ class DataStore {
   async addProduct(product: Omit<Product, "id">) {
     try {
       const res = await api.post("/products", product);
-      this.products = [res.data, ...this.products];
-      return res.data;
+      const newProd = normalize(res.data);
+      this.products = [newProd, ...this.products];
+      await this.refreshDashboard();
+      return newProd;
     } catch (error) {
       console.error("Error adding product", error);
       throw error;
@@ -190,10 +239,10 @@ class DataStore {
   async updateProduct(id: string, product: Partial<Product>) {
     try {
       const res = await api.put(`/products/${id}`, product);
-      this.products = this.products.map(p => 
-        (p.id === id || (p as any)._id === id) ? res.data : p
-      );
-      return res.data;
+      const updatedProd = normalize(res.data);
+      this.products = this.products.map(p => p.id === id ? updatedProd : p);
+      await this.refreshDashboard();
+      return updatedProd;
     } catch (error) {
       console.error("Error updating product", error);
       throw error;
@@ -203,10 +252,38 @@ class DataStore {
   async deleteProduct(id: string) {
     try {
       await api.delete(`/products/${id}`);
-      this.products = this.products.filter(p => p.id !== id && (p as any)._id !== id);
+      this.products = this.products.filter(p => p.id !== id);
+      await this.refreshDashboard();
     } catch (error) {
       console.error("Error deleting product", error);
       throw error;
+    }
+  }
+
+  async adjustStock(productId: string, newQty: number, reason: string) {
+    try {
+      const res = await api.post("/stock/adjust", { productId, newQty, reason });
+      const { product, movement } = res.data;
+      const updatedProd = normalize(product);
+      this.products = this.products.map(p => p.id === productId ? updatedProd : p);
+      this.movements = [normalize(movement), ...this.movements];
+      await this.refreshDashboard();
+      return updatedProd;
+    } catch (error) {
+      console.error("Error adjusting stock", error);
+      throw error;
+    }
+  }
+
+  private async refreshDashboard() {
+    try {
+      const res = await api.get("/dashboard/stats");
+      this.dashboard = {
+        ...res.data,
+        recentSales: res.data.recentSales.map(normalize)
+      };
+    } catch (error) {
+      console.error("Failed to refresh dashboard", error);
     }
   }
 }
