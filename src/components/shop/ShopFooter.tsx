@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 
 export function ShopFooter() {
   return (
@@ -37,9 +37,9 @@ export function ShopFooter() {
         <div>
           <h4 className="mb-4 font-display text-lg font-semibold text-[#c8860a]">Follow Us</h4>
           <div className="flex gap-3">
-            <a href="#" className="rounded-full bg-white/10 p-2 hover:bg-[#c8860a] hover:text-[#1a0a00]"><Facebook className="h-4 w-4" /></a>
-            <a href="#" className="rounded-full bg-white/10 p-2 hover:bg-[#c8860a] hover:text-[#1a0a00]"><Instagram className="h-4 w-4" /></a>
-            <a href="#" className="rounded-full bg-white/10 p-2 hover:bg-[#c8860a] hover:text-[#1a0a00]"><Twitter className="h-4 w-4" /></a>
+            {["f", "ig", "x"].map((s) => (
+              <a key={s} href="#" className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xs font-bold uppercase hover:bg-[#c8860a] hover:text-[#1a0a00]">{s}</a>
+            ))}
           </div>
         </div>
       </div>
