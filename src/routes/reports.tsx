@@ -3,32 +3,61 @@ import { ShoppingCart, Truck, Boxes, TrendingUp, Download, Printer } from "lucid
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { formatPKR } from "@/lib/format";
 import { api } from "@/services/api";
+import { store } from "@/lib/store";
 import toast from "react-hot-toast";
+import { StatCard } from "@/components/StatCard";
 
 export default function ReportsPage() {
   const [reportData, setReportData] = useState<any>(null);
+  const [metrics, setMetrics] = useState({ todaySales: 0, todayProfit: 0, totalStockValuePurchase: 0, totalStockValueSell: 0, totalRevenue: 0 });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    fetchReportData();
+    // Only fetch if data is null or stale
+    if (!reportData) {
+      fetchReportData();
+    }
+
+    // Refresh data on window focus (optional: only if tab was inactive for long)
+    const handleFocus = () => {
+      // Avoid excessive reloading by adding a simple check if data is old
+      // For now, let's keep it but ensure we handle state properly
+      fetchReportData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const fetchReportData = async () => {
-    setLoading(true);
-    const response = await api.getReportData();
-    if (response.success && response.data) {
-      setReportData(response.data);
-    } else {
-      toast.error("Failed to load report data");
+    // Only show loading spinner on initial load to avoid UI flicker
+    if (!reportData) setLoading(true);
+    
+    try {
+      const [reportRes, financialMetrics] = await Promise.all([
+        api.getReportData(),
+        store.getFinancialMetrics()
+      ]);
+      
+      if (reportRes.success && reportRes.data) {
+        setReportData(reportRes.data);
+      } else {
+        toast.error("Failed to load report data");
+      }
+      setMetrics(financialMetrics);
+    } catch (err) {
+      toast.error("An error occurred while fetching report data");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleExportCSV = async () => {
     setExporting(true);
     try {
-      const response = await fetch("http://localhost:5000/api/reports/export?type=combined");
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${baseUrl}/reports/export?type=combined`);
       
       if (response.ok) {
         const blob = await response.blob();
@@ -55,95 +84,148 @@ export default function ReportsPage() {
     toast.success("Opening print dialog");
   };
 
-  if (loading || !reportData) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Loading report data...</p>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4 animate-pulse">
+        <div className="h-12 w-12 rounded-full border-4 border-amber-brand/20 border-t-amber-brand animate-spin" />
+        <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Loading Analytics...</p>
       </div>
     );
   }
+
+  if (!reportData) return null;
 
   const { summary, chartData } = reportData;
 
   const reportCards = [
     {
-      title: "Sales Revenue",
+      title: "Today's Sales",
       icon: <ShoppingCart className="h-5 w-5" />,
-      value: formatPKR(summary.salesRevenue),
-      color: "walnut",
+      value: formatPKR(metrics.todaySales),
+      tone: "amber" as const,
+    },
+    {
+      title: "Today's Profit",
+      icon: <TrendingUp className="h-5 w-5" />,
+      value: formatPKR(metrics.todayProfit),
+      tone: "success" as const,
+    },
+    {
+      title: "Total Revenue",
+      icon: <TrendingUp className="h-5 w-5" />,
+      value: formatPKR(metrics.totalRevenue),
+      tone: "walnut" as const,
     },
     {
       title: "Purchase Cost",
       icon: <Truck className="h-5 w-5" />,
       value: formatPKR(summary.purchaseCost),
-      color: "amber",
+      tone: "amber" as const,
     },
     {
-      title: "Inventory Value",
+      title: "Stock Value (Cost)",
       icon: <Boxes className="h-5 w-5" />,
-      value: formatPKR(summary.inventoryValue),
-      color: "info",
+      value: formatPKR(metrics.totalStockValuePurchase),
+      tone: "walnut" as const,
     },
     {
-      title: "Net Profit (Est.)",
-      icon: <TrendingUp className="h-5 w-5" />,
-      value: formatPKR(summary.netProfit),
-      color: "success",
+      title: "Stock Value (Sell)",
+      icon: <Boxes className="h-5 w-5" />,
+      value: formatPKR(metrics.totalStockValueSell),
+      tone: "info" as const,
     },
   ];
 
   return (
-    <div className="space-y-6 print-area">
+    <div className="space-y-6 print-area animate-fade-in">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {reportCards.map((c) => (
-          <div key={c.title} className="rounded-xl border border-border bg-card p-5 shadow-sm">
-            <div className="flex items-center gap-3 text-muted-foreground mb-3">
-              {c.icon}
-              <span className="text-sm font-medium">{c.title}</span>
-            </div>
-            <p className="font-display text-2xl font-bold text-walnut">{c.value}</p>
-          </div>
+          <StatCard key={c.title} label={c.title} value={c.value} icon={c.icon} tone={c.tone} />
         ))}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-6 no-print">
-          <h3 className="font-display text-lg font-semibold text-walnut">Sales vs Purchases (7 Days)</h3>
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm overflow-hidden relative">
+        <div className="flex items-center justify-between mb-8 no-print">
+          <div>
+            <h3 className="font-display text-xl font-bold text-walnut">Market Liquidity</h3>
+            <p className="text-xs text-muted-foreground font-medium">Sales vs Purchases (Last 7 Days)</p>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleExportCSV}
               disabled={exporting}
-              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-cream disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-walnut hover:bg-cream transition-all disabled:opacity-50"
             >
-              <Download className="h-3.5 w-3.5" /> {exporting ? "Exporting..." : "CSV"}
+              <Download className="h-4 w-4" /> {exporting ? "Wait..." : "Export CSV"}
             </button>
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-2 rounded-lg bg-walnut px-3 py-1.5 text-xs font-medium text-cream hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-xl bg-walnut px-4 py-2 text-sm font-semibold text-cream hover:bg-walnut/90 transition-all shadow-md shadow-walnut/10"
             >
-              <Printer className="h-3.5 w-3.5" /> Print
+              <Printer className="h-4 w-4" /> Print Report
             </button>
           </div>
         </div>
+        
         <div className="print-title hidden">
-          <h3 className="font-display text-lg font-semibold text-walnut mb-4">Sales vs Purchases (7 Days)</h3>
+          <h3 className="font-display text-xl font-bold text-walnut mb-4 text-center">Business Analytics - Sales vs Purchases</h3>
         </div>
-        <div className="h-80 w-full">
+
+        <div className="h-[400px] w-full mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
+            <BarChart data={chartData} barGap={8}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+              <XAxis 
+                dataKey="name" 
+                fontSize={11} 
+                tickLine={false} 
+                axisLine={false} 
+                tick={{ fill: 'var(--color-muted-foreground)', fontWeight: 500 }}
+                dy={10}
+              />
+              <YAxis 
+                fontSize={11} 
+                tickLine={false} 
+                axisLine={false} 
+                tick={{ fill: 'var(--color-muted-foreground)', fontWeight: 500 }}
+                tickFormatter={(v) => `${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}
+              />
               <Tooltip
-                formatter={(v) => formatPKR(Number(v))}
-                contentStyle={{
-                  background: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 8,
+                cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="rounded-xl glass border border-border/50 p-4 shadow-2xl animate-fade-up">
+                        <p className="text-xs font-bold text-walnut mb-3 uppercase tracking-widest">{label}</p>
+                        <div className="space-y-2">
+                          {payload.map((entry: any) => (
+                            <div key={entry.name} className="flex items-center justify-between gap-8">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full" style={{ background: entry.fill }} />
+                                <span className="text-xs font-medium text-muted-foreground">{entry.name}</span>
+                              </div>
+                              <span className="text-xs font-bold text-walnut">{formatPKR(entry.value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
                 }}
               />
-              <Bar dataKey="Sales" fill="var(--color-amber-brand)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Purchases" fill="var(--color-walnut)" radius={[4, 4, 0, 0]} />
+              <Bar 
+                dataKey="Sales" 
+                fill="var(--color-amber-brand)" 
+                radius={[6, 6, 0, 0]} 
+                barSize={32}
+              />
+              <Bar 
+                dataKey="Purchases" 
+                fill="var(--color-walnut)" 
+                radius={[6, 6, 0, 0]} 
+                barSize={32}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -1,5 +1,13 @@
 import { Request, Response } from "express";
 import Settings from "../models/Settings";
+import User from "../models/User";
+import Product from "../models/Product";
+import Sale from "../models/Sale";
+import Purchase from "../models/Purchase";
+import FinanceTransaction from "../models/FinanceTransaction";
+import Supplier from "../models/Supplier";
+import StockMovement from "../models/StockMovement";
+import AuditLog from "../models/AuditLog";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { sendSuccess, sendError } from "../utils/responseHandler";
 import { logUserAction } from "../utils/auditLogger";
@@ -226,24 +234,66 @@ export const createBackup = asyncHandler(async (req: Request, res: Response): Pr
 // @route   GET /api/settings/backup/download
 // @access  Admin
 export const downloadBackup = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  // In a real application, this would create and download an actual backup file
-  // For now, we'll just return a success message
+  try {
+    const [
+      users,
+      products,
+      sales,
+      purchases,
+      financeTransactions,
+      suppliers,
+      stockMovements,
+      auditLogs,
+      settings
+    ] = await Promise.all([
+      User.find().lean(),
+      Product.find().lean(),
+      Sale.find().lean(),
+      Purchase.find().lean(),
+      FinanceTransaction.find().lean(),
+      Supplier.find().lean(),
+      StockMovement.find().lean(),
+      AuditLog.find().lean(),
+      Settings.findOne().lean()
+    ]);
 
-  const settings = await Settings.findOne();
+    const backupData = {
+      version: "1.0.0",
+      timestamp: new Date().toISOString(),
+      data: {
+        users,
+        products,
+        sales,
+        purchases,
+        financeTransactions,
+        suppliers,
+        stockMovements,
+        auditLogs,
+        settings
+      }
+    };
 
-  // Create audit log
-  await logUserAction(
-    "system",
-    "System",
-    "Admin",
-    "create",
-    "Settings",
-    "Downloaded database backup",
-    req.ip,
-    settings?.lastBackupSize ? `Backup size: ${settings.lastBackupSize}` : "Backup downloaded"
-  );
+    const fileName = `spice-route-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    
+    // Create audit log
+    await logUserAction(
+      "system",
+      "System",
+      "Admin",
+      "create",
+      "Settings",
+      "Downloaded full database backup",
+      req.ip,
+      `Backup contains ${sales.length} sales, ${products.length} products`
+    );
 
-  sendSuccess(res, { message: "Backup download initiated" }, "Backup download started");
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename=${fileName}`);
+    res.status(200).send(JSON.stringify(backupData, null, 2));
+  } catch (error) {
+    console.error("Backup error:", error);
+    res.status(500).json({ success: false, message: "Error generating backup file" });
+  }
 });
 
 // @desc    Reset all data (DANGER)

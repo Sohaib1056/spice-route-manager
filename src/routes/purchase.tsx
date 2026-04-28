@@ -3,6 +3,7 @@ import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Eye, Pencil, CheckCircle2, Upload, FileText, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatCard } from "@/components/StatCard";
 import { Modal } from "@/components/Modal";
 import { EmptyState } from "@/components/EmptyState";
@@ -53,11 +54,9 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
     },
   });
 
-  // Reset form when editing changes or when pre-selected product changes
   useEffect(() => {
     if (editing) {
-      console.log("Editing purchase:", editing);
-      const calculatedTax = editing.tax / (editing.subtotal - editing.discount) * 100;
+      const calculatedTax = (editing.tax / (editing.subtotal - editing.discount)) * 100;
       reset({
         supplierId: editing.supplierId,
         date: editing.date,
@@ -74,15 +73,11 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
         notes: "",
       });
     } else if (open && !editing) {
-      console.log("Creating new purchase");
-      
-      // If there's a pre-selected product, use it
       let initialProduct = products[0];
       if (preSelectedProductId) {
         const foundProduct = products.find(p => p.id === preSelectedProductId || p._id === preSelectedProductId);
         if (foundProduct) {
           initialProduct = foundProduct;
-          console.log("Pre-selected product:", foundProduct.name);
         }
       }
       
@@ -93,7 +88,7 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
         paymentTerms: "Net 30",
         items: [{ 
           productId: initialProduct?.id || "", 
-          qty: initialProduct?.minStock || 100, // Suggest minimum stock as quantity
+          qty: initialProduct?.minStock || 100,
           price: initialProduct?.buyPrice || 0, 
           discount: 0 
         }],
@@ -102,6 +97,7 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
       });
     }
   }, [editing, open, reset, suppliers, products, settings, preSelectedProductId]);
+
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const items = watch("items");
   const taxRate = watch("taxRate");
@@ -148,7 +144,6 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
           <div><label className="lbl">Expected Delivery</label><input type="date" {...register("expectedDelivery")} className="input" /></div>
           <div><label className="lbl">Payment Terms</label><select {...register("paymentTerms")} className="input"><option>Cash</option><option>Net 15</option><option>Net 30</option><option>Net 60</option></select></div>
         </div>
-
         <div>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-walnut">Items</p>
@@ -173,7 +168,6 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
                               field.onChange(e);
                               const selectedProduct = products.find(p => p.id === e.target.value);
                               if (selectedProduct) {
-                                // Auto-fill the buyPrice when product is selected
                                 setValue(`items.${idx}.price`, selectedProduct.buyPrice);
                               }
                             }}
@@ -201,7 +195,6 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
             </table>
           </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div><label className="lbl">Notes</label><textarea {...register("notes")} rows={4} className="input" /></div>
           <div className="rounded-lg bg-cream/60 p-4 space-y-2 text-sm">
@@ -221,17 +214,7 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
   );
 }
 
-function ReceiveOrderModal({ 
-  open, 
-  purchase, 
-  onClose, 
-  onReceive 
-}: { 
-  open: boolean; 
-  purchase: Purchase | null; 
-  onClose: () => void; 
-  onReceive: (id: string, data: ReceiveData) => void;
-}) {
+function ReceiveOrderModal({ open, purchase, onClose, onReceive }: { open: boolean; purchase: Purchase | null; onClose: () => void; onReceive: (id: string, data: ReceiveData) => void }) {
   const [receivedDate, setReceivedDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string; size: number } | null>(null);
@@ -243,32 +226,20 @@ function ReceiveOrderModal({
         toast.error("File size should be less than 5MB");
         return;
       }
-      
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
       if (!allowedTypes.includes(file.type)) {
         toast.error("Only JPG, PNG, and PDF files are allowed");
         return;
       }
-
       const url = URL.createObjectURL(file);
-      setUploadedFile({
-        name: file.name,
-        url: url,
-        size: file.size,
-      });
+      setUploadedFile({ name: file.name, url: url, size: file.size });
       toast.success("Bill uploaded successfully!");
     }
   };
 
   const handleSubmit = () => {
     if (!purchase) return;
-    
-    onReceive(purchase.id, {
-      receivedDate,
-      supplierBill: uploadedFile || undefined,
-      notes: notes || undefined,
-    });
-    
+    onReceive(purchase.id, { receivedDate, supplierBill: uploadedFile || undefined, notes: notes || undefined });
     setReceivedDate(new Date().toISOString().slice(0, 10));
     setNotes("");
     setUploadedFile(null);
@@ -280,120 +251,62 @@ function ReceiveOrderModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Receive Order � ${purchase.po}`}
+      title={`Receive Order - ${purchase.po}`}
       size="lg"
       footer={
         <>
-          <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">
-            Cancel
-          </button>
-          <button onClick={handleSubmit} className="rounded-lg bg-success px-4 py-2 text-sm font-medium text-white hover:opacity-90">
-            Confirm Receipt
-          </button>
+          <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
+          <button onClick={handleSubmit} className="rounded-lg bg-success px-4 py-2 text-sm font-medium text-white hover:opacity-90">Confirm Receipt</button>
         </>
       }
     >
       <div className="space-y-5">
         <div className="rounded-lg border border-border bg-cream/40 p-4">
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Supplier</p>
-              <p className="font-medium text-walnut">{purchase.supplierName}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">PO Date</p>
-              <p className="font-medium text-walnut">{formatDate(purchase.date)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Items</p>
-              <p className="font-medium text-walnut">{purchase.items.length} items</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Amount</p>
-              <p className="font-medium text-walnut">{formatPKR(purchase.total)}</p>
-            </div>
+            <div><p className="text-xs text-muted-foreground">Supplier</p><p className="font-medium text-walnut">{purchase.supplierName}</p></div>
+            <div><p className="text-xs text-muted-foreground">PO Date</p><p className="font-medium text-walnut">{formatDate(purchase.date)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Items</p><p className="font-medium text-walnut">{purchase.items.length} items</p></div>
+            <div><p className="text-xs text-muted-foreground">Total Amount</p><p className="font-medium text-walnut">{formatPKR(purchase.total)}</p></div>
           </div>
         </div>
-
         <div>
           <label className="lbl">Received Date</label>
-          <input
-            type="date"
-            value={receivedDate}
-            onChange={(e) => setReceivedDate(e.target.value)}
-            className="input"
-            max={new Date().toISOString().slice(0, 10)}
-          />
+          <input type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} className="input" max={new Date().toISOString().slice(0, 10)} />
         </div>
-
         <div>
           <label className="lbl">Upload Supplier Bill/Invoice</label>
           <p className="text-xs text-muted-foreground mb-2">Upload the bill received from supplier (JPG, PNG, or PDF - Max 5MB)</p>
-          
           {!uploadedFile ? (
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer bg-cream/40 hover:bg-cream/60 transition-colors">
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-amber-brand">Click to upload</span> or drag and drop
-                </p>
+                <p className="text-sm text-muted-foreground"><span className="font-semibold text-amber-brand">Click to upload</span> or drag and drop</p>
                 <p className="text-xs text-muted-foreground mt-1">JPG, PNG or PDF (MAX. 5MB)</p>
               </div>
-              <input
-                type="file"
-                className="hidden"
-                accept="image/jpeg,image/jpg,image/png,application/pdf"
-                onChange={handleFileUpload}
-              />
+              <input type="file" className="hidden" accept="image/jpeg,image/jpg,image/png,application/pdf" onChange={handleFileUpload} />
             </label>
           ) : (
             <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-walnut">{uploadedFile.name}</p>
-                  <p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
-                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success"><FileText className="h-5 w-5" /></div>
+                <div><p className="text-sm font-medium text-walnut">{uploadedFile.name}</p><p className="text-xs text-muted-foreground">{(uploadedFile.size / 1024).toFixed(2)} KB</p></div>
               </div>
-              <button
-                onClick={() => setUploadedFile(null)}
-                className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <button onClick={() => setUploadedFile(null)} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></button>
             </div>
           )}
         </div>
-
         <div>
           <label className="lbl">Notes (Optional)</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            className="input"
-            placeholder="Any additional notes about the received goods..."
-          />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="input" placeholder="Any additional notes about the received goods..." />
         </div>
-
         <div>
           <p className="text-sm font-semibold text-walnut mb-2">Items to Receive</p>
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-cream/60">
-                <tr>
-                  <th className="text-left p-2 text-xs uppercase text-muted-foreground">Item</th>
-                  <th className="text-right p-2 text-xs uppercase text-muted-foreground">Qty</th>
-                </tr>
-              </thead>
+              <thead className="bg-cream/60"><tr><th className="text-left p-2 text-xs uppercase text-muted-foreground">Item</th><th className="text-right p-2 text-xs uppercase text-muted-foreground">Qty</th></tr></thead>
               <tbody>
                 {purchase.items.map((item, idx) => (
-                  <tr key={idx} className="border-t border-border">
-                    <td className="p-2">{item.name}</td>
-                    <td className="p-2 text-right font-medium">{item.qty} {item.unit || 'pcs'}</td>
-                  </tr>
+                  <tr key={idx} className="border-t border-border"><td className="p-2">{item.name}</td><td className="p-2 text-right font-medium">{item.qty} {item.unit || 'pcs'}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -417,17 +330,14 @@ export default function PurchasePage() {
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [view, setView] = useState<Purchase | null>(null);
   const [receiveModal, setReceiveModal] = useState<Purchase | null>(null);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; id: string; poNumber: string }>({ open: false, id: "", poNumber: "" });
 
-  // Check for product parameter in URL and auto-open modal
   useEffect(() => {
     const productId = searchParams.get('product');
     if (productId && products.length > 0) {
-      console.log("Auto-opening purchase modal for product:", productId);
       setShowForm(true);
-      // Clear the URL parameter after opening
-      setSearchParams({});
     }
-  }, [searchParams, products, setSearchParams]);
+  }, [searchParams, products]);
 
   const stats = useMemo(() => ({
     month: list.reduce((s, p) => s + p.total, 0),
@@ -439,21 +349,17 @@ export default function PurchasePage() {
   const handleSave = async (po: Omit<Purchase, "id">) => {
     try {
       if (editingPurchase) {
-        // Update existing purchase
         await store.updatePurchase(editingPurchase.id, po);
-        setList(store.getPurchases());
-        setProducts(store.getProducts());
         setEditingPurchase(null);
-        setShowForm(false);
         toast.success("Purchase order updated");
       } else {
-        // Create new purchase
         await store.addPurchase(po);
-        setList(store.getPurchases());
-        setProducts(store.getProducts());
-        setShowForm(false);
+        setSearchParams({});
         toast.success("Purchase order created");
       }
+      setList(store.getPurchases());
+      setProducts(store.getProducts());
+      setShowForm(false);
     } catch (error) {
       toast.error(editingPurchase ? "Failed to update purchase order" : "Failed to create purchase order");
     }
@@ -461,7 +367,7 @@ export default function PurchasePage() {
 
   const handleReceive = async (id: string, data: ReceiveData) => {
     try {
-      await store.receivePurchase(id);
+      await store.receivePurchase(id, data);
       setList(store.getPurchases());
       setProducts(store.getProducts());
       setReceiveModal(null);
@@ -471,11 +377,7 @@ export default function PurchasePage() {
     }
   };
 
-  const handleDelete = async (id: string, poNumber: string) => {
-    if (!confirm(`Are you sure you want to delete ${poNumber}? This action cannot be undone.`)) {
-      return;
-    }
-    
+  const doDelete = async (id: string) => {
     try {
       await store.deletePurchase(id);
       setList(store.getPurchases());
@@ -538,13 +440,9 @@ export default function PurchasePage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => setView(p)} className="rounded-md p-1.5 text-info hover:bg-info/10" aria-label="View"><Eye className="h-4 w-4" /></button>
-                      {p.status !== "Received" && (
-                        <button onClick={() => setReceiveModal(p)} className="rounded-md p-1.5 text-success hover:bg-success/10" aria-label="Receive"><CheckCircle2 className="h-4 w-4" /></button>
-                      )}
-                      {p.status !== "Received" && (
-                        <button onClick={() => setEditingPurchase(p)} className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
-                      )}
-                      <button onClick={() => handleDelete(p.id, p.po)} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                      {p.status !== "Received" && <button onClick={() => setReceiveModal(p)} className="rounded-md p-1.5 text-success hover:bg-success/10" aria-label="Receive"><CheckCircle2 className="h-4 w-4" /></button>}
+                      {p.status !== "Received" && <button onClick={() => setEditingPurchase(p)} className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10" aria-label="Edit"><Pencil className="h-4 w-4" /></button>}
+                      <button onClick={() => setConfirmState({ open: true, id: p.id, poNumber: p.po })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -555,20 +453,9 @@ export default function PurchasePage() {
         </div>
       </div>
 
-      <NewPOModal 
-        open={showForm || !!editingPurchase} 
-        editing={editingPurchase || undefined}
-        onClose={() => { 
-          setShowForm(false); 
-          setEditingPurchase(null); 
-        }} 
-        onSave={handleSave} 
-        products={products} 
-        suppliers={suppliers}
-        preSelectedProductId={searchParams.get('product') || undefined}
-      />
+      <NewPOModal open={showForm || !!editingPurchase} editing={editingPurchase || undefined} onClose={() => { setShowForm(false); setEditingPurchase(null); }} onSave={handleSave} products={products} suppliers={suppliers} preSelectedProductId={searchParams.get('product') || undefined} />
 
-      <Modal open={!!view} onClose={() => setView(null)} title={`Purchase Order � ${view?.po ?? ""}`} size="xl">
+      <Modal open={!!view} onClose={() => setView(null)} title={`Purchase Order - ${view?.po ?? ""}`} size="xl">
         {view && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -577,29 +464,20 @@ export default function PurchasePage() {
               <div><p className="text-xs text-muted-foreground">Status</p><StatusPill type="purchase" status={view.status} /></div>
               {view.receivedDate && <div><p className="text-xs text-muted-foreground">Received Date</p><p className="font-medium text-walnut">{formatDate(view.receivedDate)}</p></div>}
             </div>
-            
             {view.supplierBill && (
               <div className="rounded-lg border border-border bg-cream/40 p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-brand/10 text-amber-brand">
-                      <FileText className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-walnut">Supplier Bill Uploaded</p>
-                      <p className="text-xs text-muted-foreground">{view.supplierBill.name}</p>
-                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-brand/10 text-amber-brand"><FileText className="h-5 w-5" /></div>
+                    <div><p className="text-sm font-medium text-walnut">Supplier Bill Uploaded</p><p className="text-xs text-muted-foreground">{view.supplierBill.name}</p></div>
                   </div>
-                  <button className="text-sm text-info hover:underline">View</button>
+                  <button onClick={() => view.supplierBill?.url && window.open(view.supplierBill.url, '_blank')} className="text-sm text-info hover:underline">View</button>
                 </div>
               </div>
             )}
-            
             <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
               <thead className="bg-cream"><tr><th className="text-left p-2">Item</th><th className="text-right p-2">Qty</th><th className="text-right p-2">Price</th><th className="text-right p-2">Total</th></tr></thead>
-              <tbody>{view.items.map((it, i) => (
-                <tr key={it.productId + i} className="border-t border-border"><td className="p-2">{it.name}</td><td className="p-2 text-right">{it.qty} {it.unit || 'pcs'}</td><td className="p-2 text-right">{formatPKR(it.price)}</td><td className="p-2 text-right">{formatPKR(it.qty * it.price)}</td></tr>
-              ))}</tbody>
+              <tbody>{view.items.map((it, i) => (<tr key={it.productId + i} className="border-t border-border"><td className="p-2">{it.name}</td><td className="p-2 text-right">{it.qty} {it.unit || 'pcs'}</td><td className="p-2 text-right">{formatPKR(it.price)}</td><td className="p-2 text-right">{formatPKR(it.qty * it.price)}</td></tr>))}</tbody>
             </table>
             <div className="ml-auto w-64 space-y-1 text-sm">
               <TransactionRow label="Subtotal" value={formatPKR(view.subtotal)} />
@@ -611,12 +489,9 @@ export default function PurchasePage() {
         )}
       </Modal>
 
-      <ReceiveOrderModal
-        open={!!receiveModal}
-        purchase={receiveModal}
-        onClose={() => setReceiveModal(null)}
-        onReceive={handleReceive}
-      />
+      <ReceiveOrderModal open={!!receiveModal} purchase={receiveModal} onClose={() => setReceiveModal(null)} onReceive={handleReceive} />
+
+      <ConfirmDialog open={confirmState.open} title="Delete Purchase Order" message={`Are you sure you want to delete ${confirmState.poNumber}? This action cannot be undone and will update supplier balances.`} confirmLabel="Delete" variant="danger" onConfirm={() => { doDelete(confirmState.id); setConfirmState({ open: false, id: "", poNumber: "" }); }} onCancel={() => setConfirmState({ open: false, id: "", poNumber: "" })} />
     </div>
   );
 }

@@ -12,10 +12,29 @@ export const getSales = async (req: Request, res: Response) => {
   }
 };
 
+import AuditLog from "../models/AuditLog";
+import User from "../models/User";
+
 export const createSale = async (req: Request, res: Response) => {
   try {
     const sale = new Sale(req.body);
     await sale.save();
+
+    // Create audit log
+    if (req.body.currentUserId) {
+      await AuditLog.create({
+        userId: req.body.currentUserId,
+        userName: req.body.currentUserName || "System",
+        userRole: req.body.currentUserRole || "Staff",
+        action: "sale",
+        category: "transaction",
+        severity: "success",
+        module: "Sales",
+        description: `New sale completed: ${sale.invoice}`,
+        details: `Total: PKR ${sale.total}, Items: ${sale.items.length}`,
+        ipAddress: req.ip,
+      });
+    }
     
     // Update stock levels and create movements
     for (const item of sale.items) {

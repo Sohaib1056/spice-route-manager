@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { Upload, Download, Database, AlertTriangle } from "lucide-react";
+import { Modal } from "@/components/Modal";
 import { api } from "@/services/api";
 import { formatDateTime } from "@/lib/format";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -39,51 +40,62 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     setLoading(true);
-    const response = await api.getSettings();
-    if (response.success && response.data) {
-      setSettings(response.data);
-    } else {
-      toast.error("Failed to load settings");
+    try {
+      const response = await api.getSettings();
+      if (response.success && response.data) {
+        setSettings(response.data as SettingsData);
+      } else {
+        toast.error("Failed to load settings");
+      }
+    } catch (err) {
+      toast.error("An error occurred");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleUpdate = async () => {
     await fetchSettings();
-    await refreshSettings(); // Refresh global settings context
+    await refreshSettings();
   };
 
   if (loading || !settings) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-amber-brand border-r-transparent"></div>
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <div className="h-12 w-12 rounded-full border-4 border-amber-brand/20 border-t-amber-brand animate-spin" />
+        <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest animate-pulse">Initializing System...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-1 rounded-lg border border-border bg-card p-1 w-fit shadow-sm">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex gap-2 rounded-2xl border border-border bg-card p-1.5 w-fit shadow-sm">
         {[
-          ["company", "Company Info"],
-          ["system", "System Settings"],
-          ["backup", "Backup"],
-        ].map(([k, l]) => (
+          ["company", "Company Info", Upload],
+          ["system", "System Settings", Database],
+          ["backup", "Security & Backup", AlertTriangle],
+        ].map(([k, l, Icon]: any) => (
           <button
             key={k}
             onClick={() => setTab(k as typeof tab)}
-            className={`rounded-md px-4 py-2 text-sm font-medium ${
-              tab === k ? "bg-amber-brand text-amber-brand-foreground" : "text-walnut hover:bg-cream"
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+              tab === k 
+                ? "bg-walnut text-cream shadow-lg shadow-walnut/20" 
+                : "text-muted-foreground hover:bg-cream hover:text-walnut"
             }`}
           >
+            <Icon className="h-4 w-4" />
             {l}
           </button>
         ))}
       </div>
 
-      {tab === "company" && <CompanyInfo settings={settings} onUpdate={handleUpdate} />}
-      {tab === "system" && <SystemSettings settings={settings} onUpdate={handleUpdate} />}
-      {tab === "backup" && <BackupTab settings={settings} onUpdate={handleUpdate} />}
+      <div className="transition-all duration-300">
+        {tab === "company" && <CompanyInfo settings={settings} onUpdate={handleUpdate} />}
+        {tab === "system" && <SystemSettings settings={settings} onUpdate={handleUpdate} />}
+        {tab === "backup" && <BackupTab settings={settings} onUpdate={handleUpdate} />}
+      </div>
     </div>
   );
 }
@@ -427,6 +439,8 @@ function BackupTab({ settings, onUpdate }: { settings: SettingsData; onUpdate: (
   const [backing, setBacking] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetText, setResetText] = useState("");
 
   const handleBackup = async () => {
     setBacking(true);
@@ -447,41 +461,49 @@ function BackupTab({ settings, onUpdate }: { settings: SettingsData; onUpdate: (
 
   const handleDownload = async () => {
     setDownloading(true);
-    const response = await api.downloadBackup();
-
-    if (response.success) {
-      toast.success("Backup download initiated");
-    } else {
-      toast.error(response.message || "Failed to download backup");
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const response = await fetch(`${baseUrl}/settings/backup/download`);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `spice-route-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        toast.success("Backup downloaded successfully");
+      } else {
+        toast.error("Failed to download backup");
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Error downloading backup");
+    } finally {
+      setDownloading(false);
     }
-    setDownloading(false);
   };
 
-  const handleReset = async () => {
-    const confirmText = prompt(
-      'This will DELETE ALL DATA permanently!\n\nType "DELETE ALL DATA" to confirm:'
-    );
+  const handleReset = () => {
+    setResetText("");
+    setShowResetModal(true);
+  };
 
-    if (!confirmText) return;
-
-    if (confirmText !== "DELETE ALL DATA") {
+  const doReset = async () => {
+    if (resetText !== "DELETE ALL DATA") {
       toast.error("Confirmation text does not match");
       return;
     }
-
-    const doubleConfirm = confirm(
-      "Are you ABSOLUTELY SURE? This action CANNOT be undone!"
-    );
-
-    if (!doubleConfirm) return;
-
+    setShowResetModal(false);
     setResetting(true);
-    const response = await api.resetAllData(confirmText, {
+    const response = await api.resetAllData(resetText, {
       currentUserId: "admin-id",
       currentUserName: "Admin",
       currentUserRole: "Admin",
     });
-
     if (response.success) {
       toast.success(response.message || "Data reset completed");
     } else {
@@ -563,6 +585,55 @@ function BackupTab({ settings, onUpdate }: { settings: SettingsData; onUpdate: (
           </div>
         </div>
       </div>
+
+      {/* Reset Confirmation Modal */}
+      <Modal
+        open={showResetModal}
+        onClose={() => { setShowResetModal(false); setResetText(""); }}
+        title="Reset All Data"
+        size="md"
+        footer={
+          <>
+            <button
+              onClick={() => { setShowResetModal(false); setResetText(""); }}
+              className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-walnut hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={doReset}
+              disabled={resetText !== "DELETE ALL DATA"}
+              className="rounded-xl bg-destructive px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              Reset All Data
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl bg-destructive/8 border border-destructive/20 p-4">
+            <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-destructive">This action CANNOT be undone!</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                All products, suppliers, sales, purchases, and transactions will be permanently deleted from the database.
+              </p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Type <span className="text-destructive font-mono">DELETE ALL DATA</span> to confirm
+            </label>
+            <input
+              value={resetText}
+              onChange={(e) => setResetText(e.target.value)}
+              placeholder='DELETE ALL DATA'
+              className="w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm focus:outline-none focus:border-destructive focus:ring-2 focus:ring-destructive/20"
+              autoFocus
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,42 +1,63 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { ReactNode } from "react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
+const pathToPermission: Record<string, string> = {
+  "/dashboard": "dashboard",
+  "/inventory": "inventory",
+  "/low-stock": "inventory",
+  "/purchase": "purchase",
+  "/sales": "sales",
+  "/supplier": "supplier",
+  "/finance": "finance",
+  "/reports": "reports",
+  "/users": "users",
+  "/permissions": "users",
+  "/notifications": "users",
+  "/settings": "settings",
+};
+
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const location = useLocation();
+  const path = location.pathname;
+
   // Check if user is logged in by checking localStorage
-  const isAuthenticated = () => {
+  const getUser = () => {
     try {
-      const user = localStorage.getItem("user");
-      if (!user) {
-        return false;
-      }
+      const userStr = localStorage.getItem("user");
+      if (!userStr) return null;
       
-      // Verify it's valid JSON
-      const parsed = JSON.parse(user);
-      
-      // Verify it has required fields
-      if (!parsed.email || !parsed.role || !parsed.name) {
-        // Invalid user data, clear it
+      const user = JSON.parse(userStr);
+      if (!user.email || !user.role || !user.name) {
         localStorage.removeItem("user");
-        return false;
+        return null;
       }
-      
-      return true;
+      return user;
     } catch (error) {
-      // Invalid JSON, clear it
       localStorage.removeItem("user");
-      return false;
+      return null;
     }
   };
 
+  const user = getUser();
+
   // If not authenticated, redirect to login page
-  if (!isAuthenticated()) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // If authenticated, render the children (protected content)
+  // Check permissions
+  const permissionKey = pathToPermission[path];
+  if (permissionKey && user.role !== "Admin") {
+    const permissions = user.permissions || {};
+    if (permissions[permissionKey] === false) {
+      return <Navigate to="/" replace />;
+    }
+  }
+
+  // If authenticated and has permission, render the children
   return <>{children}</>;
 }

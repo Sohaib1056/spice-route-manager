@@ -26,9 +26,23 @@ import { store, type DashboardData } from "@/lib/store";
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(store.getDashboard());
+  const [metrics, setMetrics] = useState({ todaySales: 0, todayProfit: 0 });
 
   useEffect(() => {
     setData(store.getDashboard());
+    const fetchMetrics = async () => {
+      const financialMetrics = await store.getFinancialMetrics();
+      setMetrics({
+        todaySales: financialMetrics.todaySales,
+        todayProfit: financialMetrics.todayProfit,
+      });
+      setData(store.getDashboard());
+    };
+    fetchMetrics();
+
+    // Listen for store updates if needed, or simply re-fetch on focus
+    window.addEventListener('focus', fetchMetrics);
+    return () => window.removeEventListener('focus', fetchMetrics);
   }, []);
 
   // Calculate Purchase vs Sales data
@@ -89,17 +103,32 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard 
+          label="Today's Sales" 
+          value={formatPKR(metrics.todaySales)} 
+          tone="amber" 
+          icon={<ShoppingCart className="h-5 w-5" />}
+        />
+        <StatCard 
+          label="Today's Profit" 
+          value={formatPKR(metrics.todayProfit)} 
+          tone="success" 
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
         <StatCard 
           label="Total Revenue" 
           value={formatPKR(stats.revenue)} 
           tone="walnut" 
-          icon={<TrendingUp className="h-5 w-5" />}
+          icon={<DollarSign className="h-5 w-5" />}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard 
           label="Total Orders" 
           value={stats.orders} 
-          tone="amber" 
+          tone="info" 
           icon={<ShoppingCart className="h-5 w-5" />}
         />
         <StatCard 

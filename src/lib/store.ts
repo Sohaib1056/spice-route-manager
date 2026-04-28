@@ -102,9 +102,16 @@ export interface DashboardData {
     orders: number;
     lowStock: number;
     customers: number;
+    totalExpenses: number;
+    netProfit: number;
+    cashInHand: number;
   };
   chartData: Array<{ date: string; revenue: number }>;
   recentSales: Sale[];
+  todaySales: number;
+  todayProfit: number;
+  totalStockValuePurchase: number;
+  totalStockValueSell: number;
 }
 
 const api = axios.create({
@@ -137,7 +144,7 @@ class DataStore {
 
   async init() {
     try {
-      const [prodRes, suppRes, saleRes, purRes, moveRes, dashRes] = await Promise.all([
+      const results = await Promise.allSettled([
         api.get("/products"),
         api.get("/suppliers"),
         api.get("/sales"),
@@ -145,26 +152,97 @@ class DataStore {
         api.get("/stock/movements"),
         api.get("/dashboard/stats"),
       ]);
-      this.products = prodRes.data.map(normalize);
-      this.suppliers = suppRes.data.map(normalize);
-      this.sales = saleRes.data.map(normalize);
-      this.purchases = purRes.data.map(normalize);
-      this.movements = moveRes.data.map(normalize);
-      this.dashboard = {
-        ...dashRes.data,
-        recentSales: dashRes.data.recentSales.map(normalize)
-      };
+
+      const [prod, supp, sale, pur, move, dash] = results;
+
+      if (prod.status === "fulfilled") this.products = prod.value.data.map(normalize);
+      if (supp.status === "fulfilled") this.suppliers = supp.value.data.map(normalize);
+      if (sale.status === "fulfilled") this.sales = sale.value.data.map(normalize);
+      if (pur.status === "fulfilled") this.purchases = pur.value.data.map(normalize);
+      if (move.status === "fulfilled") this.movements = move.value.data.map(normalize);
+      if (dash.status === "fulfilled") {
+        this.dashboard = {
+          ...dash.value.data,
+          recentSales: dash.value.data.recentSales.map(normalize)
+        };
+      }
+
+      const failed = results.filter(r => r.status === "rejected");
+      if (failed.length > 0) {
+        console.warn(`${failed.length} data sources failed to load, but the rest were initialized.`);
+      }
     } catch (error) {
-      console.error("Failed to initialize store from API", error);
+      console.error("Critical error during store initialization", error);
     }
   }
 
   getProducts() { return this.products; }
   getSuppliers() { return this.suppliers; }
+  getDashboard() { return this.dashboard; }
   getSales() { return this.sales; }
   getPurchases() { return this.purchases; }
   getMovements() { return this.movements; }
-  getDashboard() { return this.dashboard; }
+  async getFinancialMetrics() {
+    // Refresh stats first to get the latest from backend
+    try {
+      const res = await api.get("/dashboard/stats");
+      this.dashboard = {
+        ...res.data,
+        recentSales: res.data.recentSales.map(normalize)
+      };
+    } catch (e) {
+      console.warn("Could not refresh dashboard during metrics fetch", e);
+    }
+
+    if (this.dashboard) {
+      return {
+        todaySales: this.dashboard.todaySales || 0,
+        todayProfit: this.dashboard.todayProfit || 0,
+        totalStockValuePurchase: this.dashboard.totalStockValuePurchase || 0,
+        totalStockValueSell: this.dashboard.totalStockValueSell || 0,
+        totalRevenue: this.dashboard.stats?.revenue || 0,
+        totalExpenses: this.dashboard.stats?.totalExpenses || 0,
+        netProfit: this.dashboard.stats?.netProfit || 0,
+        cashInHand: this.dashboard.stats?.cashInHand || 0
+      };
+    }
+    // ... fallback remains same but ensuring we returned the new fields
+    const today = new Date().toISOString().slice(0, 10);
+    const todaySalesData = this.sales.filter(s => {
+      const saleDate = typeof s.date === 'string' ? s.date.slice(0, 10) : new Date(s.date).toISOString().slice(0, 10);
+      return saleDate === today;
+    });
+    
+    const todaySales = todaySalesData.reduce((sum, s) => sum + s.total, 0);
+    
+    let todayProfit = 0;
+    todaySalesData.forEach(sale => {
+      sale.items.forEach(item => {
+        const product = this.products.find(p => p.id === item.productId || p._id === item.productId);
+        if (product) {
+          const cost = product.buyPrice * item.qty;
+          const revenue = item.price * item.qty;
+          const itemDiscount = sale.subtotal > 0 ? (sale.discount / sale.subtotal) * (item.price * item.qty) : 0;
+          todayProfit += (revenue - cost - itemDiscount);
+        }
+      });
+    });
+
+    const totalStockValuePurchase = this.products.reduce((sum, p) => sum + (p.stock * p.buyPrice), 0);
+    const totalStockValueSell = this.products.reduce((sum, p) => sum + (p.stock * p.sellPrice), 0);
+
+    return {
+      todaySales,
+      todayProfit,
+      totalStockValuePurchase,
+      totalStockValueSell,
+      totalRevenue: this.sales.reduce((sum, s) => sum + s.total, 0),
+      totalExpenses: 0,
+      netProfit: 0,
+      cashInHand: 0
+    };
+  }
+
 
   async addSale(sale: Omit<Sale, "id">) {
     try {
@@ -209,9 +287,9 @@ class DataStore {
     }
   }
 
-  async receivePurchase(id: string) {
+  async receivePurchase(id: string, data?: any) {
     try {
-      const res = await api.put(`/purchases/${id}/receive`);
+      const res = await api.put(`/purchases/${id}/receive`, data);
       const updatedPurchase = normalize(res.data);
       this.purchases = this.purchases.map(p => p.id === id ? updatedPurchase : p);
       
@@ -354,13 +432,22 @@ class DataStore {
 
   private async refreshDashboard() {
     try {
-      const res = await api.get("/dashboard/stats");
-      this.dashboard = {
-        ...res.data,
-        recentSales: res.data.recentSales.map(normalize)
-      };
+      const results = await Promise.allSettled([
+        api.get("/sales"),
+        api.get("/dashboard/stats"),
+      ]);
+
+      const [sale, dash] = results;
+
+      if (sale.status === "fulfilled") this.sales = sale.value.data.map(normalize);
+      if (dash.status === "fulfilled") {
+        this.dashboard = {
+          ...dash.value.data,
+          recentSales: dash.value.data.recentSales.map(normalize)
+        };
+      }
     } catch (error) {
-      console.error("Failed to refresh dashboard", error);
+      console.error("Failed to refresh dashboard and sales", error);
     }
   }
 }

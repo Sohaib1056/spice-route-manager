@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Key, Trash2, Users as UsersIcon, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
 import { formatDateTime } from "@/lib/format";
@@ -32,6 +33,10 @@ export default function UsersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; user: UserRecord | null }>({
+    open: false,
+    user: null,
+  });
 
   const { register: registerAdd, handleSubmit: handleSubmitAdd, reset: resetAdd } = useForm<UserFormData>();
   const { register: registerEdit, handleSubmit: handleSubmitEdit, reset: resetEdit, setValue } = useForm<UserFormData>();
@@ -43,13 +48,19 @@ export default function UsersPage() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const response = await api.getUsers();
-    if (response.success && response.data) {
-      setUsers(response.data);
-    } else {
-      toast.error("Failed to load users");
+    try {
+      const response = await api.getUsers();
+      if (response.success && response.data) {
+        setUsers(response.data as UserRecord[]);
+      } else {
+        toast.error("Failed to load users");
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast.error("An error occurred while fetching users");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleAddUser = async (data: UserFormData) => {
@@ -91,9 +102,11 @@ export default function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async (user: UserRecord) => {
-    if (!confirm(`Are you sure you want to delete ${user.name}?`)) return;
+  const handleDeleteUser = (user: UserRecord) => {
+    setConfirmState({ open: true, user });
+  };
 
+  const doDeleteUser = async (user: UserRecord) => {
     const response = await api.deleteUser(user._id, {
       currentUserId: "admin-id",
       currentUserName: "Admin",
@@ -434,7 +447,7 @@ export default function UsersPage() {
           resetPassword();
         }}
         title="Reset Password"
-        size="sm"
+        size="md"
         footer={
           <>
             <button
@@ -481,6 +494,20 @@ export default function UsersPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title="Delete User"
+        message={`Are you sure you want to delete "${confirmState.user?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete User"
+        variant="danger"
+        onConfirm={() => {
+          const user = confirmState.user;
+          setConfirmState({ open: false, user: null });
+          if (user) doDeleteUser(user);
+        }}
+        onCancel={() => setConfirmState({ open: false, user: null })}
+      />
     </div>
   );
 }

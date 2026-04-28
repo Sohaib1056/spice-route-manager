@@ -28,23 +28,48 @@ export function Modal({ open, onClose, title, children, size = "lg", footer }: M
   const sizes = { md: "max-w-md", lg: "max-w-2xl", xl: "max-w-4xl" };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-walnut/40 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{
+        backgroundColor: "rgba(26,14,7,0.5)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        animation: "backdropFadeIn 0.18s ease-out forwards",
+      }}
+      onClick={onClose}
+    >
       <div
-        className={cn("w-full rounded-xl bg-card shadow-2xl", sizes[size])}
+        className={cn("w-full rounded-2xl bg-card overflow-hidden", sizes[size])}
+        style={{
+          animation: "modalIn 0.26s cubic-bezier(0.34, 1.2, 0.64, 1) forwards",
+          boxShadow:
+            "0 32px 80px -12px rgba(0,0,0,0.32), 0 8px 32px -4px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.06) inset",
+          border: "1px solid var(--color-border)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h3 className="text-lg font-semibold font-display text-walnut">{title}</h3>
+        {/* Header */}
+        <div
+          className="flex items-center justify-between border-b border-border px-6 py-4"
+          style={{
+            background: "linear-gradient(135deg, color-mix(in oklab, var(--color-cream) 80%, white), var(--color-card))",
+          }}
+        >
+          <h3 className="text-lg font-semibold font-display text-walnut tracking-tight">{title}</h3>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
-        {footer && <div className="flex items-center justify-end gap-2 border-t border-border bg-cream/50 px-6 py-4 rounded-b-xl">{footer}</div>}
+        {footer && (
+          <div className="flex items-center justify-end gap-2 border-t border-border bg-cream/50 px-6 py-4 rounded-b-2xl">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import Purchase from "../models/Purchase";
 import Product from "../models/Product";
 import StockMovement from "../models/StockMovement";
 import Supplier from "../models/Supplier";
+import AuditLog from "../models/AuditLog";
 
 export const getPurchases = async (req: Request, res: Response) => {
   try {
@@ -17,6 +18,22 @@ export const createPurchase = async (req: Request, res: Response) => {
   try {
     const purchase = new Purchase(req.body);
     await purchase.save();
+
+    // Create audit log
+    if (req.body.currentUserId) {
+      await AuditLog.create({
+        userId: req.body.currentUserId,
+        userName: req.body.currentUserName || "System",
+        userRole: req.body.currentUserRole || "Staff",
+        action: "purchase",
+        category: "transaction",
+        severity: "success",
+        module: "Purchases",
+        description: `New purchase order created: ${purchase.po}`,
+        details: `Supplier: ${purchase.supplierName}, Total: PKR ${purchase.total}`,
+        ipAddress: req.ip,
+      });
+    }
     
     // Update supplier total purchases and balance due
     const supplier = await Supplier.findById(purchase.supplierId);
@@ -36,6 +53,22 @@ export const createPurchase = async (req: Request, res: Response) => {
       
       await supplier.save();
       console.log(`Supplier ${supplier.name} updated: totalPurchases=${supplier.totalPurchases}, balanceDue=${supplier.balanceDue}, status=${supplier.status}`);
+    }
+
+    // Create audit log
+    if (req.body.currentUserId) {
+      await AuditLog.create({
+        userId: req.body.currentUserId,
+        userName: req.body.currentUserName || "System",
+        userRole: req.body.currentUserRole || "Staff",
+        action: "update",
+        category: "transaction",
+        severity: "info",
+        module: "Purchases",
+        description: `Purchase order received: ${purchase.po}`,
+        details: `Status updated to Received`,
+        ipAddress: req.ip,
+      });
     }
 
     if (purchase.status === "Received") {
@@ -77,6 +110,22 @@ export const receivePurchase = async (req: Request, res: Response) => {
       purchase.status = "Received";
       purchase.receivedDate = new Date();
       await purchase.save();
+
+      // Create audit log
+      if (req.body.currentUserId) {
+        await AuditLog.create({
+          userId: req.body.currentUserId,
+          userName: req.body.currentUserName || "System",
+          userRole: req.body.currentUserRole || "Staff",
+          action: "update",
+          category: "transaction",
+          severity: "info",
+          module: "Purchases",
+          description: `Purchase order received: ${purchase.po}`,
+          details: `Status updated to Received`,
+          ipAddress: req.ip,
+        });
+      }
       
       for (const item of purchase.items) {
         const product = await Product.findById(item.productId);

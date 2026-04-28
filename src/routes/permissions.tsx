@@ -49,13 +49,19 @@ export default function PermissionsPage() {
 
   const fetchPermissions = async () => {
     setLoading(true);
-    const response = await api.getAllPermissions();
-    if (response.success && response.data) {
-      setUserPermissions(response.data);
-    } else {
-      toast.error("Failed to load permissions");
+    try {
+      const response = await api.getAllPermissions();
+      if (response.success && response.data) {
+        setUserPermissions(response.data as UserPermission[]);
+      } else {
+        toast.error("Failed to load permissions");
+      }
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+      toast.error("An error occurred while fetching permissions");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const togglePermission = (userId: string, permissionKey: keyof UserPermission["permissions"]) => {

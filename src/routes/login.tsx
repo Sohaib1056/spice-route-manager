@@ -55,7 +55,8 @@ export default function LoginPage() {
       
       if (response.success && response.data) {
         // Store user data in localStorage
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        const userData = response.data as { user: any };
+        localStorage.setItem("user", JSON.stringify(userData.user));
         
         if (data.remember) {
           localStorage.setItem("rememberMe", "true");

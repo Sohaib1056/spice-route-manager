@@ -64,9 +64,10 @@ export default function LowStockPage() {
     setLoading(true);
     try {
       const response = await api.getLowStockProducts(filters);
-      if (response.success) {
-        setProducts(response.data.products);
-        setStats(response.data.stats);
+      if (response.success && response.data) {
+        const data = response.data as { products: Product[]; stats: Stats };
+        setProducts(data.products);
+        setStats(data.stats);
       } else {
         toast.error("Failed to fetch low stock products");
       }
@@ -247,9 +248,8 @@ export default function LowStockPage() {
       {/* Products List */}
       {products.length === 0 ? (
         <EmptyState
-          icon={<Package className="h-12 w-12" />}
           title="No Low Stock Items"
-          description="All products are well stocked. Great job!"
+          subtitle="All products are well stocked. Great job!"
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">

@@ -237,6 +237,18 @@ class ApiService {
   async getReorderList() {
     return this.request("/low-stock/reorder-list");
   }
+
+  // Stock APIs
+  async getStockMovements() {
+    return this.request("/stock/movements");
+  }
+
+  async adjustStock(data: any) {
+    return this.request("/stock/adjust", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new ApiService();

@@ -120,6 +120,8 @@ export default function NotificationsPage() {
   const [selectedCategory, setSelectedCategory] = useState<AuditCategory>("all");
   const [selectedSeverity, setSelectedSeverity] = useState<AuditSeverity | "all">("all");
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     fetchAuditLogs();
@@ -137,13 +139,19 @@ export default function NotificationsPage() {
       params.severity = selectedSeverity;
     }
 
-    const response = await api.getAuditLogs(params);
-    if (response.success && response.data) {
-      setAuditLogs(response.data);
-    } else {
-      toast.error("Failed to load audit logs");
+    try {
+      const response = await api.getAuditLogs(params);
+      if (response.success && response.data) {
+        setAuditLogs(response.data as AuditLog[]);
+      } else {
+        toast.error("Failed to load audit logs");
+      }
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      toast.error("An error occurred while fetching audit logs");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const filteredLogs = useMemo(() => {
@@ -357,9 +365,13 @@ export default function NotificationsPage() {
 
                           {/* View Details Button */}
                           <button
-                            onClick={() => setExpandedLog(expandedLog === log._id ? null : log._id)}
+                            onClick={() => {
+                              setSelectedLog(log);
+                              setShowDetailModal(true);
+                            }}
                             className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10 transition-colors shrink-0"
                             aria-label="View Details"
+                            title="View Full Details"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -414,6 +426,92 @@ export default function NotificationsPage() {
           </div>
         </div>
       </div>
+      {/* Detail Modal */}
+      {showDetailModal && selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-border flex justify-between items-center bg-cream/30">
+              <h3 className="text-xl font-bold text-walnut">Activity Details</h3>
+              <button 
+                onClick={() => setShowDetailModal(false)}
+                className="text-muted-foreground hover:text-walnut p-2"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Module</label>
+                  <p className="text-sm font-semibold text-walnut">{selectedLog.module}</p>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Action</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    {getActionIcon(selectedLog.action)}
+                    <span className="text-sm font-semibold capitalize">{selectedLog.action.replace("_", " ")}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Performed By</label>
+                  <p className="text-sm font-semibold text-walnut">{selectedLog.userName} ({selectedLog.userRole})</p>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Timestamp</label>
+                  <p className="text-sm font-semibold text-walnut">{formatDateTime(selectedLog.timestamp || selectedLog.createdAt)}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Description</label>
+                <p className="text-sm text-walnut mt-1 bg-cream/40 p-3 rounded-lg border border-border/50">{selectedLog.description}</p>
+              </div>
+
+              {selectedLog.details && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Technical Details</label>
+                  <pre className="text-xs text-walnut mt-1 bg-muted p-4 rounded-lg overflow-x-auto font-mono border border-border">
+                    {selectedLog.details}
+                  </pre>
+                </div>
+              )}
+
+              {selectedLog.changes && selectedLog.changes.length > 0 && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-2 block">Data Changes</label>
+                  <div className="space-y-2">
+                    {selectedLog.changes.map((change, idx) => (
+                      <div key={idx} className="flex flex-col p-3 rounded-lg bg-cream/20 border border-border/30">
+                        <span className="text-xs font-bold text-walnut mb-2 uppercase opacity-70">{change.field}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="flex-1 text-xs p-2 rounded bg-destructive/10 text-destructive line-through truncate">{change.oldValue}</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="flex-1 text-xs p-2 rounded bg-success/10 text-success font-medium truncate">{change.newValue}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 text-[10px] text-muted-foreground pt-4 border-t border-border">
+                <span>ID: {selectedLog._id}</span>
+                {selectedLog.ipAddress && <span>• IP: {selectedLog.ipAddress}</span>}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-border bg-cream/10 flex justify-end">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="px-6 py-2 rounded-xl bg-walnut text-cream font-semibold text-sm hover:bg-walnut/90 transition-all"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

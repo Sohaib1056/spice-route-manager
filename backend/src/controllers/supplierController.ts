@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Supplier from "../models/Supplier";
 import FinanceTransaction from "../models/FinanceTransaction";
 import AuditLog from "../models/AuditLog";
+import Purchase from "../models/Purchase";
 
 export const getSuppliers = async (req: Request, res: Response) => {
   try {
@@ -34,8 +35,32 @@ export const getSupplierById = async (req: Request, res: Response) => {
 
 export const updateSupplier = async (req: Request, res: Response) => {
   try {
-    const supplier = await Supplier.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { openingBalance, ...otherData } = req.body;
+    const supplier = await Supplier.findById(req.params.id);
+    
     if (!supplier) return res.status(404).json({ message: "Supplier not found" });
+
+    // Handle opening balance change
+    if (openingBalance !== undefined && openingBalance !== supplier.openingBalance) {
+      const diff = openingBalance - supplier.openingBalance;
+      supplier.balanceDue += diff;
+      supplier.openingBalance = openingBalance;
+    }
+
+    // Apply other updates
+    Object.assign(supplier, otherData);
+
+    // Update status based on new balance
+    const totalOwed = supplier.openingBalance + supplier.totalPurchases;
+    if (supplier.balanceDue === 0) {
+      supplier.status = "Paid";
+    } else if (supplier.balanceDue > 0 && supplier.balanceDue < totalOwed) {
+      supplier.status = "Partial";
+    } else {
+      supplier.status = "Due";
+    }
+
+    await supplier.save();
     res.json(supplier);
   } catch (error) {
     res.status(400).json({ message: "Error updating supplier" });
@@ -102,8 +127,6 @@ export const recordPayment = async (req: Request, res: Response) => {
 
     // Update purchase orders payment status
     // Get all purchases for this supplier
-    const PurchaseModel = await import("../models/Purchase.js");
-    const Purchase = PurchaseModel.default;
     const purchases = await Purchase.find({ 
       supplierId: supplier._id,
       paymentStatus: { $ne: "Paid" } // Only unpaid or partial purchases

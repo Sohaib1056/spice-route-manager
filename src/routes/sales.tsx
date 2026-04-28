@@ -346,7 +346,7 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
             <div key={c.productId} className="flex items-center gap-2 rounded-lg bg-cream/60 p-2">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-walnut truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} � {c.qty} {c.unit}</p>
+                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} • {c.qty} {c.unit}</p>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setQty(c.productId, -1)} className="rounded-md border border-border p-1 text-walnut hover:bg-cream"><Minus className="h-3 w-3" /></button>
@@ -768,7 +768,7 @@ function History({ list }: { list: Sale[] }) {
               <TransactionRow label="Tax" value={formatPKR(view.tax)} />
               <TransactionRow label="Grand Total" value={formatPKR(view.total)} bold />
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border">Shukriya for your business � Aap ka muamal, hamare haath mein.</p>
+            <p className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border">Shukriya for your business • Aap ka muamal, hamare haath mein.</p>
           </div>
         )}
       </Modal>
@@ -788,7 +788,7 @@ export default function SalesPage() {
       await store.addSale(s);
       setList(store.getSales());
       setProducts(store.getProducts());
-      toast.success(`Sale completed � ${s.invoice}`);
+      toast.success(`Sale completed • ${s.invoice}`);
     } catch (error) {
       toast.error("Failed to complete sale");
     }

@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
 import FinanceTransaction from "../models/FinanceTransaction";
+import Supplier from "../models/Supplier";
+import AuditLog from "../models/AuditLog";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { sendSuccess, sendError } from "../utils/responseHandler";
 import { logUserAction } from "../utils/auditLogger";
@@ -182,16 +183,18 @@ export const createTransaction = asyncHandler(async (req: Request, res: Response
   });
 
   // Create audit log
-  await logUserAction(
-    currentUserId || "system",
-    currentUserName || addedBy || "System",
-    currentUserRole || "Admin",
-    "create",
-    "Finance",
-    `Added ${type.toLowerCase()} transaction: ${description}`,
-    req.ip,
-    `Amount: PKR ${amount}, Category: ${category || "General"}`
-  );
+  await AuditLog.create({
+    userId: currentUserId || "60d0fe4f5311236168a109ca", // Fallback to a default ID if missing
+    userName: currentUserName || addedBy || "System",
+    userRole: currentUserRole || "Admin",
+    action: "create",
+    category: "transaction",
+    severity: "info",
+    module: "Finance",
+    description: `Added ${type.toLowerCase()} transaction: ${description}`,
+    details: `Amount: PKR ${amount}, Category: ${category || "General"}`,
+    ipAddress: req.ip,
+  });
 
   sendSuccess(res, transaction, "Transaction created successfully", 201);
 });
@@ -207,19 +210,42 @@ export const deleteTransaction = asyncHandler(async (req: Request, res: Response
     return;
   }
 
+  // If this was a supplier payment, revert the supplier balance
+  if (transaction.category === "Supplier Payment" && transaction.supplierId) {
+    const supplier = await Supplier.findById(transaction.supplierId);
+    if (supplier) {
+      supplier.balanceDue += transaction.amount;
+      
+      // Update status
+      const totalOwed = supplier.openingBalance + supplier.totalPurchases;
+      if (supplier.balanceDue === 0) {
+        supplier.status = "Paid";
+      } else if (supplier.balanceDue > 0 && supplier.balanceDue < totalOwed) {
+        supplier.status = "Partial";
+      } else {
+        supplier.status = "Due";
+      }
+      
+      await supplier.save();
+      console.log(`Reverted supplier ${supplier.name} balance after transaction deletion. New balance: ${supplier.balanceDue}`);
+    }
+  }
+
   await FinanceTransaction.findByIdAndDelete(req.params.id);
 
   // Create audit log
-  await logUserAction(
-    req.body.currentUserId || "system",
-    req.body.currentUserName || "System",
-    req.body.currentUserRole || "Admin",
-    "delete",
-    "Finance",
-    `Deleted ${transaction.type.toLowerCase()} transaction: ${transaction.description}`,
-    req.ip,
-    `Amount: PKR ${transaction.amount}`
-  );
+  await AuditLog.create({
+    userId: req.body.currentUserId || "60d0fe4f5311236168a109ca",
+    userName: req.body.currentUserName || "System",
+    userRole: req.body.currentUserRole || "Admin",
+    action: "delete",
+    category: "transaction",
+    severity: "warning",
+    module: "Finance",
+    description: `Deleted ${transaction.type.toLowerCase()} transaction: ${transaction.description}`,
+    details: `Amount: PKR ${transaction.amount}`,
+    ipAddress: req.ip,
+  });
 
   sendSuccess(res, null, "Transaction deleted successfully");
 });

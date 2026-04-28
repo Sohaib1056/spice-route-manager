@@ -109,7 +109,7 @@ export function App() {
             element={
               <ProtectedRoute>
                 <AppLayout>
-                  <SalesPage />
+                  <StockPage />
                 </AppLayout>
               </ProtectedRoute>
             }
@@ -170,14 +170,18 @@ export function App() {
         <Toaster
           position="top-right"
           toastOptions={{
-            duration: 3000,
+            duration: 4000,
             style: {
-              background: "var(--color-card)",
+              background: "rgba(255, 255, 255, 0.85)",
+              backdropFilter: "blur(12px)",
               color: "var(--color-walnut)",
-              border: "1px solid var(--color-border)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
               fontFamily: "var(--font-sans)",
-              borderRadius: "8px",
-              padding: "12px 16px",
+              borderRadius: "12px",
+              padding: "16px 20px",
+              fontSize: "14px",
+              fontWeight: "500",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
             },
             success: {
               iconTheme: {

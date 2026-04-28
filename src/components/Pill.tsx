@@ -15,8 +15,24 @@ const map: Record<Tone, string> = {
 };
 
 export function Pill({ tone = "muted", children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
+  const dotColor: Record<Tone, string> = {
+    amber: "bg-amber-brand",
+    walnut: "bg-walnut",
+    pistachio: "bg-pistachio",
+    success: "bg-success",
+    danger: "bg-destructive",
+    info: "bg-info",
+    warning: "bg-amber-500",
+    muted: "bg-muted-foreground/50",
+  };
+
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", map[tone], className)}>
+    <span className={cn(
+      "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-200", 
+      map[tone], 
+      className
+    )}>
+      <span className={cn("h-1.5 w-1.5 rounded-full animate-pulse-glow", dotColor[tone])} />
       {children}
     </span>
   );

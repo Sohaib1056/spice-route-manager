@@ -8,6 +8,10 @@ import { Modal } from "@/components/Modal";
 import { formatPKR, formatDate } from "@/lib/format";
 import { store, type Supplier, type Purchase } from "@/lib/store";
 import { api } from "@/services/api";
+import axios from "axios";
+
+const APIU = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const norm = (item: any) => ({ ...item, id: item._id || item.id });
 
 // --- Types ---
 
@@ -62,22 +66,35 @@ function SupplierModal({ open, editing, onClose, onSave }: { open: boolean; edit
 }
 
 function PaymentModal({ supplier, onClose, onSave }: { supplier: Supplier | null; onClose: () => void; onSave: (amt: number, method: string, date: string, note: string) => void }) {
-  const { register, handleSubmit, reset } = useForm<{ amount: number; method: string; date: string; note: string }>({
-    values: { amount: supplier?.balanceDue ?? 0, method: "Cash", date: new Date().toISOString().slice(0, 10), note: "" },
+  const { register, handleSubmit, reset, setValue } = useForm<{ amount: number; method: string; date: string; note: string }>({
+    values: { amount: 0, method: "Cash", date: new Date().toISOString().slice(0, 10), note: "" },
   });
   return (
     <Modal open={!!supplier} onClose={() => { onClose(); reset(); }} title="Record Payment" size="md"
       footer={<>
-        <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
-        <button onClick={handleSubmit((v) => onSave(Number(v.amount), v.method, v.date, v.note))} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save Payment</button>
+        <button onClick={onClose} className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-walnut hover:bg-muted transition-colors">Cancel</button>
+        <button onClick={handleSubmit((v) => onSave(Number(v.amount), v.method, v.date, v.note))} className="rounded-xl bg-amber-brand px-5 py-2.5 text-sm font-semibold text-amber-brand-foreground hover:opacity-90 transition-all">Save Payment</button>
       </>}>
       <div className="space-y-4">
-        <div><label className="lbl">Amount (PKR)</label><input type="number" {...register("amount", { valueAsNumber: true })} className="input" /></div>
+        <div className="rounded-xl border border-border bg-cream/60 p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Current Balance Due</p>
+            <p className="font-display font-semibold text-destructive text-xl">{formatPKR(supplier?.balanceDue ?? 0)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setValue("amount", supplier?.balanceDue ?? 0)}
+            className="text-xs font-medium text-amber-brand hover:underline border border-amber-brand/30 rounded-lg px-3 py-1.5 hover:bg-amber-brand/8 transition-colors"
+          >
+            Pay full amount
+          </button>
+        </div>
+        <div><label className="lbl">Payment Amount (PKR)</label><input type="number" placeholder="Enter payment amount" {...register("amount", { valueAsNumber: true })} className="input" /></div>
         <div><label className="lbl">Payment Method</label><select {...register("method")} className="input"><option>Cash</option><option>Bank Transfer</option><option>Cheque</option></select></div>
         <div><label className="lbl">Date</label><input type="date" {...register("date")} className="input" /></div>
         <div><label className="lbl">Note</label><textarea {...register("note")} rows={2} className="input" /></div>
       </div>
-      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:8px;padding:8px 12px;font-size:14px}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
+      <style>{`.input{width:100%;border:1px solid var(--color-border);background:var(--color-card);border-radius:10px;padding:9px 13px;font-size:14px;color:var(--color-foreground)}.input:focus{outline:none;border-color:var(--color-amber-brand);box-shadow:0 0 0 3px color-mix(in oklab,var(--color-amber-brand) 18%,transparent)}.lbl{display:block;margin-bottom:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-muted-foreground)}`}</style>
     </Modal>
   );
 }
@@ -92,21 +109,38 @@ export default function SupplierPage() {
   const [ledgerPayments, setLedgerPayments] = useState<any[]>([]);
   const [paying, setPaying] = useState<Supplier | null>(null);
 
-  // Refresh data when component mounts
+  // Refresh data when component mounts — fetch directly from API (not store.init
+  // which calls 6 endpoints in parallel and silently swallows failures)
   useEffect(() => {
     const refreshData = async () => {
-      await store.init();
-      setList(store.getSuppliers());
-      setPurchases(store.getPurchases());
+      try {
+        const [suppRes, purRes] = await Promise.all([
+          axios.get(`${APIU}/suppliers`),
+          axios.get(`${APIU}/purchases`),
+        ]);
+        setList(suppRes.data.map(norm));
+        setPurchases(purRes.data.map(norm));
+      } catch {
+        // Fallback to store cache
+        setList(store.getSuppliers());
+        setPurchases(store.getPurchases());
+      }
     };
     refreshData();
   }, []);
 
   const refreshAll = async () => {
-    await store.init();
-    setList(store.getSuppliers());
-    setPurchases(store.getPurchases());
-    toast.success("Data refreshed");
+    try {
+      const [suppRes, purRes] = await Promise.all([
+        axios.get(`${APIU}/suppliers`),
+        axios.get(`${APIU}/purchases`),
+      ]);
+      setList(suppRes.data.map(norm));
+      setPurchases(purRes.data.map(norm));
+      toast.success("Data refreshed");
+    } catch {
+      toast.error("Failed to refresh data. Please check your connection.");
+    }
   };
 
   const stats = {
@@ -147,7 +181,6 @@ export default function SupplierPage() {
     if (!paying) return;
     
     try {
-      // Get current user for audit log
       const storedUser = localStorage.getItem("user");
       const user = storedUser ? JSON.parse(storedUser) : null;
       
@@ -162,20 +195,25 @@ export default function SupplierPage() {
       });
       
       if (response.success) {
-        // Refresh all data from backend
-        await store.init();
-        setList(store.getSuppliers());
-        setPurchases(store.getPurchases());
-        
-        // Fetch updated ledger data
-        const ledgerResponse = await api.getSupplierLedger(paying.id);
-        if (ledgerResponse.success) {
-          setLedgerPayments(ledgerResponse.data.payments || []);
-          // Update the ledger state with fresh supplier data
-          const updatedSupplier = store.getSuppliers().find(s => s.id === paying.id);
-          if (updatedSupplier) {
-            setLedger(updatedSupplier);
+        // Fetch fresh supplier data directly from API
+        try {
+          const [suppRes, purRes] = await Promise.all([
+            axios.get(`${APIU}/suppliers`),
+            axios.get(`${APIU}/purchases`),
+          ]);
+          const freshList = suppRes.data.map(norm);
+          setList(freshList);
+          setPurchases(purRes.data.map(norm));
+
+          // Update ledger with fresh data
+          const ledgerResponse = await api.getSupplierLedger(paying.id);
+          if (ledgerResponse.success) {
+            setLedgerPayments((ledgerResponse.data as any)?.payments || []);
+            const updatedSupplier = freshList.find((s: Supplier) => s.id === paying.id);
+            if (updatedSupplier) setLedger(updatedSupplier);
           }
+        } catch {
+          // Silent fallback
         }
         
         toast.success("Payment recorded successfully");
@@ -234,23 +272,22 @@ export default function SupplierPage() {
             </div>
             <div className="mt-4 flex gap-2">
               <button onClick={async () => {
-                // Refresh data and fetch ledger with payments
-                await store.init();
-                setList(store.getSuppliers());
-                setPurchases(store.getPurchases());
-                
-                // Fetch supplier ledger with payments
+                // Fetch fresh supplier data directly from API before opening ledger
                 try {
+                  const suppRes = await axios.get(`${APIU}/suppliers`);
+                  const freshList = suppRes.data.map(norm);
+                  setList(freshList);
+                  const freshSupplier = freshList.find((x: Supplier) => x.id === s.id) || s;
                   const response = await api.getSupplierLedger(s.id);
                   if (response.success) {
-                    setLedgerPayments(response.data.payments || []);
+                    setLedgerPayments((response.data as any)?.payments || []);
                   }
-                } catch (error) {
-                  console.error("Error fetching ledger:", error);
-                  setLedgerPayments([]);
+                  setLedger(freshSupplier);
+                } catch {
+                  const response = await api.getSupplierLedger(s.id);
+                  if (response.success) setLedgerPayments((response.data as any)?.payments || []);
+                  setLedger(s);
                 }
-                
-                setLedger(s);
               }} className="flex-1 inline-flex items-center justify-center gap-1 rounded-md bg-amber-brand px-3 py-2 text-xs font-medium text-amber-brand-foreground hover:opacity-90"><Eye className="h-3.5 w-3.5" /> View Ledger</button>
               <button onClick={() => setEditing({ open: true, data: s })} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-walnut hover:bg-muted"><Pencil className="h-3.5 w-3.5" /></button>
             </div>

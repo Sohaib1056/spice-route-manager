@@ -2,45 +2,34 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { sendSuccess } from "../utils/responseHandler";
 import FinanceTransaction from "../models/FinanceTransaction";
+import Sale from "../models/Sale";
+import Purchase from "../models/Purchase";
+import Product from "../models/Product";
 
 // @desc    Get report data
 // @route   GET /api/reports
 // @access  Private
 export const getReportData = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  // Calculate actual values from database
-  const [incomeResult, expenseResult] = await Promise.all([
-    FinanceTransaction.aggregate([
-      { $match: { type: "Income" } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]),
-    FinanceTransaction.aggregate([
-      { $match: { type: "Expense" } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]),
+  // Use a faster aggregation or Promise.all for initial counts
+  const [sales, purchases, products, transactions] = await Promise.all([
+    Sale.find().lean(),
+    Purchase.find({ status: "Received" }).lean(),
+    Product.find().select("stock buyPrice name sku").lean(),
+    FinanceTransaction.find().select("type amount").lean()
   ]);
 
-  const totalIncome = incomeResult[0]?.total || 0;
-  const totalExpense = expenseResult[0]?.total || 0;
-
-  // Get category-wise breakdown
-  const [salesRevenueResult, purchaseCostResult] = await Promise.all([
-    FinanceTransaction.aggregate([
-      { $match: { type: "Income", category: { $in: ["Sales Revenue", "Product Sales"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]),
-    FinanceTransaction.aggregate([
-      { $match: { type: "Expense", category: { $in: ["Purchase Cost", "Inventory Purchase"] } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]),
-  ]);
-
-  const salesRevenue = salesRevenueResult[0]?.total || totalIncome; // Use total income if no specific sales
-  const purchaseCost = purchaseCostResult[0]?.total || 0;
-  const netProfit = totalIncome - totalExpense;
+  const totalRevenue = sales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const totalPurchaseCost = purchases.reduce((sum, p) => sum + (p.total || 0), 0);
   
-  // Calculate inventory value (purchases - cost of goods sold)
-  // For now, use remaining cash as proxy for inventory value
-  const inventoryValue = Math.max(0, purchaseCost * 0.6); // Estimate: 60% of purchases still in inventory
+  const totalIncomeTxns = transactions
+    .filter(t => t.type === "Income")
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalExpenseTxns = transactions
+    .filter(t => t.type === "Expense")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const inventoryValueCost = products.reduce((sum, p) => sum + ((p.stock || 0) * (p.buyPrice || 0)), 0);
+  const netProfit = (totalRevenue + totalIncomeTxns) - totalExpenseTxns;
 
   // Get last 7 days data
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -49,35 +38,34 @@ export const getReportData = asyncHandler(async (req: Request, res: Response): P
     return d.toISOString().slice(0, 10);
   });
 
-  // Get actual daily data
-  const chartData = await Promise.all(
-    days.map(async (date) => {
-      const [dailySales, dailyPurchases] = await Promise.all([
-        FinanceTransaction.aggregate([
-          { $match: { type: "Income", date } },
-          { $group: { _id: null, total: { $sum: "$amount" } } },
-        ]),
-        FinanceTransaction.aggregate([
-          { $match: { type: "Expense", date } },
-          { $group: { _id: null, total: { $sum: "$amount" } } },
-        ]),
-      ]);
+  // Optimize daily data lookup by creating a map
+  const salesMap = new Map<string, number>();
+  sales.forEach((s: any) => {
+    const dateValue = s.date;
+    const date = dateValue instanceof Date ? dateValue.toISOString().slice(0, 10) : String(dateValue).slice(0, 10);
+    salesMap.set(date, (salesMap.get(date) || 0) + (s.total || 0));
+  });
 
-      return {
-        name: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        date,
-        Sales: dailySales[0]?.total || 0,
-        Purchases: dailyPurchases[0]?.total || 0,
-      };
-    })
-  );
+  const purchaseMap = new Map<string, number>();
+  purchases.forEach((p: any) => {
+    const dateValue = p.date;
+    const date = dateValue instanceof Date ? dateValue.toISOString().slice(0, 10) : String(dateValue).slice(0, 10);
+    purchaseMap.set(date, (purchaseMap.get(date) || 0) + (p.total || 0));
+  });
+
+  const chartData = days.map(date => ({
+    name: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    date,
+    Sales: salesMap.get(date) || 0,
+    Purchases: purchaseMap.get(date) || 0,
+  }));
 
   sendSuccess(res, {
     summary: {
-      salesRevenue,
-      purchaseCost,
-      inventoryValue,
-      netProfit,
+      salesRevenue: totalRevenue,
+      purchaseCost: totalPurchaseCost,
+      inventoryValue: inventoryValueCost,
+      netProfit: netProfit,
     },
     chartData,
   });

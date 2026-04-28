@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+﻿import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { ArrowDown, ArrowUp, RefreshCw, RotateCcw, X } from "lucide-react";
@@ -147,7 +147,7 @@ function History({ movements }: { movements: StockMovement[] }) {
 
         {filtered.length > 0 && (
           <div className="flex items-center justify-between border-t border-border px-4 py-3">
-            <p className="text-xs text-muted-foreground">Showing {(page - 1) * perPage + 1}�{Math.min(page * perPage, filtered.length)} of {filtered.length}</p>
+            <p className="text-xs text-muted-foreground">Showing {(page - 1) * perPage + 1}û{Math.min(page * perPage, filtered.length)} of {filtered.length}</p>
             <div className="flex gap-1">
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-md border border-border px-3 py-1 text-sm hover:bg-cream disabled:opacity-50">Prev</button>
               {Array.from({ length: pages }).map((_, i) => (

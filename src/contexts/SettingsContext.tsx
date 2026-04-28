@@ -69,7 +69,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await api.getSettings();
       if (response.success && response.data) {
-        setSettings(response.data);
+        setSettings(response.data as Settings);
       }
     } catch (error) {
       console.error("Failed to fetch settings:", error);

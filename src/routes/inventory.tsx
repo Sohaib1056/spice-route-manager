@@ -2,12 +2,14 @@ import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Plus, Pencil, Trash2, Package, AlertTriangle, XCircle, DollarSign } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
 import { SearchInput } from "@/components/SearchInput";
 import { EmptyState } from "@/components/EmptyState";
 import { formatPKR } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { store, type Product } from "@/lib/store";
 
 // --- Types & Constants ---
@@ -113,6 +115,10 @@ export default function InventoryPage() {
   const [status, setStatus] = useState<string>("All");
   const [sort, setSort] = useState<string>("name");
   const [modal, setModal] = useState<{ open: boolean; editing?: Product }>({ open: false });
+  const [confirmState, setConfirmState] = useState<{ open: boolean; id: string }>({
+    open: false,
+    id: "",
+  });
 
   useEffect(() => {
     setList(store.getProducts());
@@ -134,8 +140,11 @@ export default function InventoryPage() {
   const low = list.filter((p) => p.stock > 0 && p.stock < p.minStock).length;
   const out = list.filter((p) => p.stock === 0).length;
 
-  const onDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
+  const onDelete = (id: string) => {
+    setConfirmState({ open: true, id });
+  };
+
+  const doDelete = async (id: string) => {
     try {
       await store.deleteProduct(id);
       setList([...store.getProducts()]);
@@ -200,48 +209,76 @@ export default function InventoryPage() {
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-cream/60 text-xs uppercase text-muted-foreground">
+            <thead className="sticky top-0 z-10 bg-cream/90 backdrop-blur text-xs uppercase text-muted-foreground border-b border-border">
               <tr>
-                <th className="text-left font-medium px-4 py-3">#</th>
-                <th className="text-left font-medium px-4 py-3">Product</th>
-                <th className="text-left font-medium px-4 py-3">SKU</th>
-                <th className="text-left font-medium px-4 py-3">Category</th>
-                <th className="text-left font-medium px-4 py-3">Unit</th>
-                <th className="text-right font-medium px-4 py-3">Buy</th>
-                <th className="text-right font-medium px-4 py-3">Sell</th>
-                <th className="text-left font-medium px-4 py-3">Stock</th>
-                <th className="text-right font-medium px-4 py-3">Min</th>
-                <th className="text-left font-medium px-4 py-3">Status</th>
-                <th className="text-right font-medium px-4 py-3">Actions</th>
+                <th className="text-left font-bold px-4 py-3.5">Product</th>
+                <th className="text-left font-bold px-4 py-3.5">SKU</th>
+                <th className="text-left font-bold px-4 py-3.5">Category</th>
+                <th className="text-right font-bold px-4 py-3.5">Buy Price</th>
+                <th className="text-right font-bold px-4 py-3.5">Sell Price</th>
+                <th className="text-right font-bold px-4 py-3.5">Margin</th>
+                <th className="text-left font-bold px-4 py-3.5">Stock Status</th>
+                <th className="text-left font-bold px-4 py-3.5">Status</th>
+                <th className="text-right font-bold px-4 py-3.5">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p, i) => {
-                const pct = Math.min(100, (p.stock / Math.max(p.minStock * 3, 1)) * 100);
+              {filtered.map((p) => {
+                const pct = Math.min(100, (p.stock / Math.max(p.minStock * 2, 1)) * 100);
                 const ok = p.stock >= p.minStock;
+                const outOfStock = p.stock === 0;
+                const margin = p.sellPrice - p.buyPrice;
+                const marginPct = (margin / (p.buyPrice || 1)) * 100;
+
                 return (
-                  <tr key={p.id} className="border-t border-border hover:bg-cream/40">
-                    <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-walnut">{p.name}</p>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.sku}</td>
-                    <td className="px-4 py-3"><Pill tone={categoryTone[p.category as Category]}>{p.category}</Pill></td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.unit}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatPKR(p.buyPrice)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium text-walnut">{formatPKR(p.sellPrice)}</td>
-                    <td className="px-4 py-3 min-w-[120px]">
-                      <p className="text-sm font-medium text-walnut">{p.stock}</p>
-                      <div className="mt-1 h-1.5 rounded-full bg-cream overflow-hidden">
-                        <div className={`h-full ${ok ? "bg-success" : p.stock === 0 ? "bg-destructive" : "bg-warning"}`} style={{ width: `${pct}%` }} />
+                  <tr key={p.id} className="border-t border-border/50 hover:bg-cream/40 transition-colors group">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold shadow-sm transition-transform group-hover:scale-110",
+                          categoryTone[p.category as Category] === "amber" ? "bg-amber-brand/10 text-amber-brand" :
+                          categoryTone[p.category as Category] === "pistachio" ? "bg-pistachio/10 text-pistachio" :
+                          categoryTone[p.category as Category] === "info" ? "bg-info/10 text-info" : "bg-walnut/10 text-walnut"
+                        )}>
+                          {p.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-walnut">{p.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">{p.unit} unit</p>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{p.minStock}</td>
-                    <td className="px-4 py-3"><Pill tone={p.active ? "success" : "muted"}>{p.active ? "Active" : "Inactive"}</Pill></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setModal({ open: true, editing: p })} className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
-                        <button onClick={() => onDelete(p.id)} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                    <td className="px-4 py-4 text-muted-foreground font-mono text-xs tracking-tighter">{p.sku}</td>
+                    <td className="px-4 py-4"><Pill tone={categoryTone[p.category as Category]}>{p.category}</Pill></td>
+                    <td className="px-4 py-4 text-right tabular-nums text-muted-foreground">{formatPKR(p.buyPrice)}</td>
+                    <td className="px-4 py-4 text-right tabular-nums font-bold text-walnut">{formatPKR(p.sellPrice)}</td>
+                    <td className="px-4 py-4 text-right">
+                      <p className={cn("text-xs font-bold", margin > 0 ? "text-success" : "text-destructive")}>
+                        {margin > 0 ? "+" : ""}{formatPKR(margin)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground font-medium">{marginPct.toFixed(1)}%</p>
+                    </td>
+                    <td className="px-4 py-4 min-w-[140px]">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={cn("text-xs font-bold tabular-nums", ok ? "text-success" : outOfStock ? "text-destructive" : "text-warning")}>
+                          {p.stock} in stock
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-medium">Min: {p.minStock}</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-cream overflow-hidden">
+                        <div className={cn(
+                          "h-full transition-all duration-500",
+                          ok ? "bg-success" : outOfStock ? "bg-destructive" : "bg-warning"
+                        )} style={{ width: `${pct}%` }} />
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <Pill tone={p.active ? "success" : "muted"}>{p.active ? "Active" : "Inactive"}</Pill>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setModal({ open: true, editing: p })} className="rounded-lg p-2 text-amber-brand hover:bg-amber-brand/10 transition-colors" title="Edit"><Pencil className="h-4 w-4" /></button>
+                        <button onClick={() => onDelete(p.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -258,6 +295,19 @@ export default function InventoryPage() {
         editing={modal.editing}
         onClose={() => setModal({ open: false })}
         onSave={handleSave}
+      />
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title="Delete Product"
+        message="Are you sure you want to delete this product? All associated data will be lost."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => {
+          setConfirmState({ open: false, id: "" });
+          doDelete(confirmState.id);
+        }}
+        onCancel={() => setConfirmState({ open: false, id: "" })}
       />
     </div>
   );

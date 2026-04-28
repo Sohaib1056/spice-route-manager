@@ -3,10 +3,12 @@ import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Plus, TrendingUp, TrendingDown, DollarSign, Wallet, Trash2 } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
 import { formatPKR, formatDate } from "@/lib/format";
+import { store } from "@/lib/store";
 import { api } from "@/services/api";
 
 const COLORS = ["var(--color-amber-brand)", "var(--color-walnut)", "var(--color-pistachio)", "var(--color-info)", "var(--color-destructive)"];
@@ -182,44 +184,73 @@ export default function FinancePage() {
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState({ type: "All", category: "All", from: "", to: "" });
   const [loading, setLoading] = useState(true);
-  const [totals, setTotals] = useState({ income: 0, expense: 0, profit: 0, cash: 850000 });
+  const [totals, setTotals] = useState({ income: 0, expense: 0, profit: 0, cash: 0 });
+  const [metrics, setMetrics] = useState({ todaySales: 0, todayProfit: 0, totalStockValuePurchase: 0, totalStockValueSell: 0, totalRevenue: 0, totalExpenses: 0, netProfit: 0, cashInHand: 0 });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [expenseBreakdown, setExpenseBreakdown] = useState<any[]>([]);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; id: string }>({
+    open: false,
+    id: "",
+  });
 
   useEffect(() => {
     fetchTransactions();
     fetchStats();
     fetchMonthlyData();
     fetchExpenseBreakdown();
+    fetchMetrics();
+
+    // Refresh data on window focus
+    window.addEventListener('focus', () => {
+      fetchTransactions();
+      fetchStats();
+      fetchMonthlyData();
+      fetchExpenseBreakdown();
+      fetchMetrics();
+    });
+    return () => window.removeEventListener('focus', () => {});
   }, [filter, range]);
+
+  const fetchMetrics = async () => {
+    const data = await store.getFinancialMetrics();
+    setMetrics(data);
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
-    const response = await api.getFinanceTransactions(filter);
-    if (response.success && response.data) {
-      setList(response.data);
+    try {
+      const response = await api.getFinanceTransactions(filter);
+      if (response.success && response.data) {
+        setList(response.data as FinanceTxn[]);
+      } else {
+        toast.error("Failed to load finance transactions");
+      }
+    } catch (error) {
+      console.error("Error fetching finance transactions:", error);
+      toast.error("An error occurred while fetching finance transactions");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchStats = async () => {
     const response = await api.getFinanceStats(range);
     if (response.success && response.data) {
-      setTotals(response.data);
+      setTotals(response.data as any);
     }
   };
 
   const fetchMonthlyData = async () => {
     const response = await api.getMonthlyFinanceData();
     if (response.success && response.data) {
-      setMonthlyData(response.data);
+      setMonthlyData(response.data as any[]);
     }
   };
 
   const fetchExpenseBreakdown = async () => {
     const response = await api.getExpenseBreakdown();
     if (response.success && response.data) {
-      setExpenseBreakdown(response.data);
+      setExpenseBreakdown(response.data as any[]);
     }
   };
 
@@ -244,9 +275,11 @@ export default function FinancePage() {
     }
   };
 
-  const handleDeleteTxn = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this transaction?")) return;
+  const handleDeleteTxn = (id: string) => {
+    setConfirmState({ open: true, id });
+  };
 
+  const doDeleteTxn = async (id: string) => {
     const response = await api.deleteFinanceTransaction(id, {
       currentUserId: "admin-id",
       currentUserName: "Admin",
@@ -287,10 +320,17 @@ export default function FinancePage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Revenue" value={formatPKR(totals.income)} tone="success" icon={<TrendingUp className="h-5 w-5" />} />
-        <StatCard label="Total Expenses" value={formatPKR(totals.expense)} tone="danger" icon={<TrendingDown className="h-5 w-5" />} />
-        <StatCard label="Net Profit" value={formatPKR(totals.profit)} tone={totals.profit > 0 ? "amber" : "danger"} icon={<DollarSign className="h-5 w-5" />} />
-        <StatCard label="Cash in Hand" value={formatPKR(totals.cash)} tone="info" icon={<Wallet className="h-5 w-5" />} />
+        <StatCard label="Today's Sales" value={formatPKR(metrics.todaySales)} tone="amber" icon={<TrendingUp className="h-5 w-5" />} />
+        <StatCard label="Today's Profit" value={formatPKR(metrics.todayProfit)} tone="success" icon={<TrendingUp className="h-5 w-5" />} />
+        <StatCard label="Stock Value (Cost)" value={formatPKR(metrics.totalStockValuePurchase)} tone="walnut" icon={<Wallet className="h-5 w-5" />} />
+        <StatCard label="Stock Value (Sell)" value={formatPKR(metrics.totalStockValueSell)} tone="info" icon={<DollarSign className="h-5 w-5" />} />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Revenue" value={formatPKR(metrics.totalRevenue)} tone="success" icon={<TrendingUp className="h-5 w-5" />} />
+        <StatCard label="Total Expenses" value={formatPKR(metrics.totalExpenses)} tone="danger" icon={<TrendingDown className="h-5 w-5" />} />
+        <StatCard label="Net Profit" value={formatPKR(metrics.netProfit)} tone={metrics.netProfit >= 0 ? "success" : "danger"} icon={<DollarSign className="h-5 w-5" />} />
+        <StatCard label="Cash in Hand" value={formatPKR(metrics.cashInHand)} tone="info" icon={<Wallet className="h-5 w-5" />} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -424,6 +464,19 @@ export default function FinancePage() {
       </div>
 
       <AddTxnModal open={showAdd} onClose={() => setShowAdd(false)} onSave={handleSaveTxn} />
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => {
+          setConfirmState({ open: false, id: "" });
+          doDeleteTxn(confirmState.id);
+        }}
+        onCancel={() => setConfirmState({ open: false, id: "" })}
+      />
     </div>
   );
 }
