@@ -79,15 +79,6 @@ export default function Navbar({ onSearch }) {
               />
             </form>
 
-            {/* WhatsApp */}
-            <a
-              href="tel:+923211234567"
-              className="hidden lg:flex items-center gap-2 px-4 py-2.5 bg-whatsapp/10 text-whatsapp rounded-xl hover:bg-whatsapp hover:text-white transition-all duration-200 font-medium"
-            >
-              <Phone className="w-4 h-4" />
-              <span className="text-sm">0321-1234567</span>
-            </a>
-
             {/* Cart */}
             <Link
               to="/cart"
@@ -181,15 +172,6 @@ export default function Navbar({ onSearch }) {
                   </a>
                 )
               ))}
-              
-              {/* Mobile WhatsApp */}
-              <a
-                href="tel:+923211234567"
-                className="flex items-center gap-2 px-4 py-3 bg-whatsapp/10 text-whatsapp rounded-xl font-medium mt-2"
-              >
-                <Phone className="w-5 h-5" />
-                Call: 0321-1234567
-              </a>
             </div>
           </div>
         )}

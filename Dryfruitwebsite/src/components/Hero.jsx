@@ -71,13 +71,13 @@ export default function Hero() {
           {/* Right Column - Image/Visual */}
           <div className="flex justify-center md:justify-end">
             <div className="relative">
-              <div className="w-full max-w-[420px] h-[320px] md:h-[420px] bg-gradient-to-br from-primary-light to-gold-light rounded-3xl flex items-center justify-center overflow-hidden shadow-xl">
+              <div className="w-full max-w-[380px] h-[380px] md:max-w-[450px] md:h-[450px] bg-gradient-to-br from-primary-light to-gold-light rounded-3xl flex items-center justify-center overflow-hidden shadow-xl">
                 <div className="text-center p-8">
-                  <div className="text-6xl mb-4">
+                  <div className="text-8xl md:text-9xl mb-4">
                     <span role="img" aria-label="almonds">🥜</span>
                   </div>
-                  <p className="text-2xl font-bold text-primary">Premium</p>
-                  <p className="text-lg text-text-gray">Dry Fruits</p>
+                  <p className="text-3xl md:text-4xl font-bold text-primary mb-2">Premium</p>
+                  <p className="text-xl md:text-2xl text-text-gray">Dry Fruits</p>
                 </div>
               </div>
               
