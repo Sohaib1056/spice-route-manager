@@ -1,11 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { Pill } from "@/components/Pill";
 import { Logo } from "@/components/Logo";
+import { api } from "@/services/api";
 
 const loginSchema = z.object({
   email: z.string().email("براہ کرم صحیح ای میل درج کریں"),
@@ -18,12 +20,6 @@ interface LoginForm {
   password: string;
   remember?: boolean;
 }
-
-const demos = [
-  { label: "Admin", email: "admin@dryfruitpro.pk", password: "admin123", color: "bg-walnut hover:bg-walnut/90 border-walnut" },
-  { label: "Manager", email: "manager@dryfruitpro.pk", password: "manager123", color: "bg-amber-brand hover:bg-amber-brand/90 border-amber-brand" },
-  { label: "Staff", email: "staff@dryfruitpro.pk", password: "staff123", color: "bg-pistachio hover:bg-pistachio/90 border-pistachio" },
-];
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -41,29 +37,48 @@ export default function LoginPage() {
     defaultValues: { email: "", password: "", remember: false },
   });
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      // User is already logged in, redirect to dashboard
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
+
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
+    setShake(false);
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    // Check if credentials match any demo account
-    const validAccount = demos.find(
-      (demo) => demo.email === data.email && demo.password === data.password
-    );
-
-    if (validAccount) {
-      navigate("/");
-    } else {
+    try {
+      const response = await api.login(data.email, data.password);
+      
+      if (response.success && response.data) {
+        // Store user data in localStorage
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        
+        if (data.remember) {
+          localStorage.setItem("rememberMe", "true");
+        }
+        
+        toast.success("Login successful! Welcome back.");
+        
+        // Navigate to dashboard
+        setTimeout(() => {
+          navigate("/");
+        }, 500);
+      } else {
+        setShake(true);
+        toast.error(response.message || "Invalid credentials");
+        setTimeout(() => setShake(false), 500);
+      }
+    } catch (error) {
       setShake(true);
+      toast.error("Login failed. Please check your credentials.");
       setTimeout(() => setShake(false), 500);
+    } finally {
       setLoading(false);
     }
-  };
-
-  const fillDemo = (email: string, password: string) => {
-    setValue("email", email);
-    setValue("password", password);
   };
 
   return (
@@ -243,25 +258,6 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
-          </div>
-
-          {/* Demo Role Cards */}
-          <div className="mt-8">
-            <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider text-center">
-              Quick Demo Access
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              {demos.map((demo) => (
-                <button
-                  key={demo.label}
-                  onClick={() => fillDemo(demo.email, demo.password)}
-                  className={`${demo.color} text-white p-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 border-2`}
-                >
-                  <div className="text-sm font-bold mb-1">{demo.label}</div>
-                  <div className="text-[10px] opacity-80 truncate">{demo.email.split('@')[0]}</div>
-                </button>
-              ))}
-            </div>
           </div>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">

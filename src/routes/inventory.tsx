@@ -20,7 +20,6 @@ const categoryTone: Record<Category, "amber" | "pistachio" | "info" | "walnut"> 
 
 interface FormVals {
   name: string; 
-  urdu: string;
   sku: string; 
   category: Category; 
   unit: "kg" | "g" | "pack";
@@ -48,7 +47,7 @@ function ProductModal({ open, editing, onClose, onSave }: { open: boolean; editi
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormVals>({
     defaultValues: editing
       ? { ...editing as any }
-      : { name: "", urdu: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" },
+      : { name: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" },
   });
 
   // Reset form when editing changes or modal opens/closes
@@ -56,7 +55,7 @@ function ProductModal({ open, editing, onClose, onSave }: { open: boolean; editi
     if (open) {
       reset(editing 
         ? { ...editing as any } 
-        : { name: "", urdu: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" }
+        : { name: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" }
       );
     }
   }, [open, editing, reset]);
@@ -74,11 +73,8 @@ function ProductModal({ open, editing, onClose, onSave }: { open: boolean; editi
       }
     >
       <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="English Name" error={errors.name?.message}>
-          <input {...register("name", { required: "English name is required" })} className="input" placeholder="e.g. Almonds" />
-        </Field>
-        <Field label="Urdu Name">
-          <input {...register("urdu")} className="input text-right font-urdu" dir="rtl" placeholder="??? ???? ???" />
+        <Field label="Product Name" error={errors.name?.message} className="md:col-span-2">
+          <input {...register("name", { required: "Product name is required" })} className="input" placeholder="e.g. Almonds" />
         </Field>
         <Field label="SKU"><input {...register("sku")} className="input" /></Field>
         <Field label="Category">
@@ -228,7 +224,6 @@ export default function InventoryPage() {
                     <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-walnut">{p.name}</p>
-                      <p className="text-xs text-muted-foreground font-urdu" dir="rtl">{p.urdu}</p>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.sku}</td>
                     <td className="px-4 py-3"><Pill tone={categoryTone[p.category as Category]}>{p.category}</Pill></td>

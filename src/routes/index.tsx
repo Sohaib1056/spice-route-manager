@@ -4,6 +4,8 @@ import {
   ShoppingCart, 
   TrendingUp, 
   Boxes,
+  Package,
+  DollarSign,
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -13,6 +15,9 @@ import {
   YAxis, 
   Tooltip, 
   CartesianGrid,
+  BarChart,
+  Bar,
+  Legend,
 } from "recharts";
 import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
@@ -24,6 +29,52 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setData(store.getDashboard());
+  }, []);
+
+  // Calculate Purchase vs Sales data
+  const purchaseVsSalesData = useMemo(() => {
+    const purchases = store.getPurchases();
+    const sales = store.getSales();
+    
+    // Group by last 7 days
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return date.toISOString().split('T')[0];
+    });
+    
+    return last7Days.map(date => {
+      const dayPurchases = purchases.filter(p => p.date.startsWith(date));
+      const daySales = sales.filter(s => s.date.startsWith(date));
+      
+      return {
+        date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+        purchases: dayPurchases.reduce((sum, p) => sum + p.total, 0),
+        sales: daySales.reduce((sum, s) => sum + s.total, 0),
+      };
+    });
+  }, []);
+
+  // Calculate Top Products data
+  const topProductsData = useMemo(() => {
+    const sales = store.getSales();
+    const productSales: Record<string, number> = {};
+    
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        if (productSales[item.name]) {
+          productSales[item.name] += item.qty;
+        } else {
+          productSales[item.name] = item.qty;
+        }
+      });
+    });
+    
+    // Sort and get top 5
+    return Object.entries(productSales)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, qty]) => ({ name, qty }));
   }, []);
 
   if (!data) {
@@ -108,6 +159,109 @@ export default function DashboardPage() {
             ))}
             {recentSales.length === 0 && (
               <p className="text-center text-sm text-muted-foreground py-8">No recent sales</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* New Charts Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Purchase vs Sales Comparison Chart */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-display text-lg font-semibold text-walnut">Purchase vs Sales</h3>
+              <p className="text-xs text-muted-foreground mt-1">Last 7 days comparison</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-pistachio"></div>
+                <span className="text-xs text-muted-foreground">Sales</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-amber-brand"></div>
+                <span className="text-xs text-muted-foreground">Purchases</span>
+              </div>
+            </div>
+          </div>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={purchaseVsSalesData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="var(--color-muted-foreground)" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                />
+                <YAxis 
+                  stroke="var(--color-muted-foreground)" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(v) => `${v/1000}k`}
+                />
+                <Tooltip 
+                  formatter={(v) => formatPKR(Number(v))}
+                  contentStyle={{ 
+                    background: "var(--color-card)", 
+                    border: "1px solid var(--color-border)", 
+                    borderRadius: 8 
+                  }}
+                />
+                <Bar dataKey="sales" fill="var(--color-pistachio)" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="purchases" fill="var(--color-amber-brand)" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Top Products Chart */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-display text-lg font-semibold text-walnut">Top Selling Products</h3>
+              <p className="text-xs text-muted-foreground mt-1">By quantity sold</p>
+            </div>
+            <Package className="h-5 w-5 text-amber-brand" />
+          </div>
+          <div className="h-80 w-full">
+            {topProductsData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProductsData} layout="vertical" margin={{ left: 20, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--color-border)" />
+                  <XAxis 
+                    type="number" 
+                    stroke="var(--color-muted-foreground)" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    stroke="var(--color-muted-foreground)" 
+                    fontSize={11} 
+                    width={120}
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <Tooltip 
+                    formatter={(v) => [`${v} units`, 'Sold']}
+                    contentStyle={{ 
+                      background: "var(--color-card)", 
+                      border: "1px solid var(--color-border)", 
+                      borderRadius: 8 
+                    }}
+                  />
+                  <Bar dataKey="qty" fill="var(--color-pistachio)" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-sm text-muted-foreground">No sales data available</p>
+              </div>
             )}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Plus, Phone, Mail, Eye, Pencil, Truck, CheckCircle2, AlertCircle } from "lucide-react";
@@ -6,7 +6,8 @@ import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
 import { formatPKR, formatDate } from "@/lib/format";
-import { store, type Supplier } from "@/lib/store";
+import { store, type Supplier, type Purchase } from "@/lib/store";
+import { api } from "@/services/api";
 
 // --- Types ---
 
@@ -60,7 +61,7 @@ function SupplierModal({ open, editing, onClose, onSave }: { open: boolean; edit
   );
 }
 
-function PaymentModal({ supplier, onClose, onSave }: { supplier: Supplier | null; onClose: () => void; onSave: (amt: number) => void }) {
+function PaymentModal({ supplier, onClose, onSave }: { supplier: Supplier | null; onClose: () => void; onSave: (amt: number, method: string, date: string, note: string) => void }) {
   const { register, handleSubmit, reset } = useForm<{ amount: number; method: string; date: string; note: string }>({
     values: { amount: supplier?.balanceDue ?? 0, method: "Cash", date: new Date().toISOString().slice(0, 10), note: "" },
   });
@@ -68,7 +69,7 @@ function PaymentModal({ supplier, onClose, onSave }: { supplier: Supplier | null
     <Modal open={!!supplier} onClose={() => { onClose(); reset(); }} title="Record Payment" size="md"
       footer={<>
         <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">Cancel</button>
-        <button onClick={handleSubmit((v) => onSave(Number(v.amount)))} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save Payment</button>
+        <button onClick={handleSubmit((v) => onSave(Number(v.amount), v.method, v.date, v.note))} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Save Payment</button>
       </>}>
       <div className="space-y-4">
         <div><label className="lbl">Amount (PKR)</label><input type="number" {...register("amount", { valueAsNumber: true })} className="input" /></div>
@@ -85,9 +86,28 @@ function PaymentModal({ supplier, onClose, onSave }: { supplier: Supplier | null
 
 export default function SupplierPage() {
   const [list, setList] = useState<Supplier[]>(store.getSuppliers());
+  const [purchases, setPurchases] = useState<Purchase[]>(store.getPurchases());
   const [editing, setEditing] = useState<{ open: boolean; data?: Supplier }>({ open: false });
   const [ledger, setLedger] = useState<Supplier | null>(null);
+  const [ledgerPayments, setLedgerPayments] = useState<any[]>([]);
   const [paying, setPaying] = useState<Supplier | null>(null);
+
+  // Refresh data when component mounts
+  useEffect(() => {
+    const refreshData = async () => {
+      await store.init();
+      setList(store.getSuppliers());
+      setPurchases(store.getPurchases());
+    };
+    refreshData();
+  }, []);
+
+  const refreshAll = async () => {
+    await store.init();
+    setList(store.getSuppliers());
+    setPurchases(store.getPurchases());
+    toast.success("Data refreshed");
+  };
 
   const stats = {
     total: list.length,
@@ -99,31 +119,91 @@ export default function SupplierPage() {
   const initials = (n: string) => n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
 
   const handleSave = async (s: SForm) => {
-    // In production, this would call store methods to sync with backend
-    if (editing.data) {
-      setList((l) => l.map((x) => (x.id === editing.data!.id ? { ...x, ...s } : x)));
-      toast.success("Supplier updated");
-    } else {
-      setList((l) => [{ id: `s${Date.now()}`, totalPurchases: 0, balanceDue: 0, status: "Paid", ...s } as Supplier, ...l]);
-      toast.success("Supplier added");
+    try {
+      if (editing.data) {
+        const updated = await store.updateSupplier(editing.data.id, s);
+        setList((l) => l.map((x) => (x.id === editing.data!.id ? updated : x)));
+        toast.success("Supplier updated");
+      } else {
+        const newSupplier = await store.addSupplier({
+          ...s,
+          totalPurchases: 0,
+          balanceDue: s.openingBalance,
+          status: s.openingBalance > 0 ? "Due" : "Paid",
+        });
+        setList((l) => [newSupplier, ...l]);
+        toast.success("Supplier added");
+      }
+      setEditing({ open: false });
+      // Refresh purchases to get latest data
+      setPurchases(store.getPurchases());
+    } catch (error) {
+      toast.error("Failed to save supplier");
+      console.error(error);
     }
-    setEditing({ open: false });
   };
 
-  const handlePayment = (amt: number) => {
+  const handlePayment = async (amt: number, method: string, date: string, note: string) => {
     if (!paying) return;
-    setList((l) => l.map((x) => x.id === paying.id ? { ...x, balanceDue: Math.max(0, x.balanceDue - amt) } : x));
-    toast.success("Payment recorded");
-    setPaying(null);
+    
+    try {
+      // Get current user for audit log
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      
+      const response = await api.recordSupplierPayment(paying.id, {
+        amount: amt,
+        method,
+        date,
+        note,
+        userId: user?._id || user?.id,
+        userName: user?.name,
+        userRole: user?.role,
+      });
+      
+      if (response.success) {
+        // Refresh all data from backend
+        await store.init();
+        setList(store.getSuppliers());
+        setPurchases(store.getPurchases());
+        
+        // Fetch updated ledger data
+        const ledgerResponse = await api.getSupplierLedger(paying.id);
+        if (ledgerResponse.success) {
+          setLedgerPayments(ledgerResponse.data.payments || []);
+          // Update the ledger state with fresh supplier data
+          const updatedSupplier = store.getSuppliers().find(s => s.id === paying.id);
+          if (updatedSupplier) {
+            setLedger(updatedSupplier);
+          }
+        }
+        
+        toast.success("Payment recorded successfully");
+        setPaying(null);
+      } else {
+        toast.error(response.message || "Failed to record payment");
+      }
+    } catch (error) {
+      toast.error("Failed to record payment");
+      console.error(error);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Manage all your dry fruit suppliers and ledgers.</p>
-        <button onClick={() => setEditing({ open: true })} className="inline-flex items-center gap-2 rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">
-          <Plus className="h-4 w-4" /> Add Supplier
-        </button>
+        <div className="flex gap-2">
+          <button onClick={refreshAll} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-walnut hover:bg-muted">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+          <button onClick={() => setEditing({ open: true })} className="inline-flex items-center gap-2 rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">
+            <Plus className="h-4 w-4" /> Add Supplier
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -153,7 +233,25 @@ export default function SupplierPage() {
               <div><p className="text-xs text-muted-foreground">Balance Due</p><p className={`font-semibold ${s.balanceDue > 0 ? "text-destructive" : "text-success"}`}>{formatPKR(s.balanceDue)}</p></div>
             </div>
             <div className="mt-4 flex gap-2">
-              <button onClick={() => setLedger(s)} className="flex-1 inline-flex items-center justify-center gap-1 rounded-md bg-amber-brand px-3 py-2 text-xs font-medium text-amber-brand-foreground hover:opacity-90"><Eye className="h-3.5 w-3.5" /> View Ledger</button>
+              <button onClick={async () => {
+                // Refresh data and fetch ledger with payments
+                await store.init();
+                setList(store.getSuppliers());
+                setPurchases(store.getPurchases());
+                
+                // Fetch supplier ledger with payments
+                try {
+                  const response = await api.getSupplierLedger(s.id);
+                  if (response.success) {
+                    setLedgerPayments(response.data.payments || []);
+                  }
+                } catch (error) {
+                  console.error("Error fetching ledger:", error);
+                  setLedgerPayments([]);
+                }
+                
+                setLedger(s);
+              }} className="flex-1 inline-flex items-center justify-center gap-1 rounded-md bg-amber-brand px-3 py-2 text-xs font-medium text-amber-brand-foreground hover:opacity-90"><Eye className="h-3.5 w-3.5" /> View Ledger</button>
               <button onClick={() => setEditing({ open: true, data: s })} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-walnut hover:bg-muted"><Pencil className="h-3.5 w-3.5" /></button>
             </div>
           </div>
@@ -167,36 +265,111 @@ export default function SupplierPage() {
         onSave={handleSave}
       />
 
-      <Modal open={!!ledger} onClose={() => setLedger(null)} title={`Ledger — ${ledger?.name ?? ""}`} size="xl"
+      <Modal open={!!ledger} onClose={() => { setLedger(null); setLedgerPayments([]); }} title={`Ledger â€” ${ledger?.name ?? ""}`} size="xl"
         footer={<button onClick={() => { setPaying(ledger); }} className="rounded-lg bg-amber-brand px-4 py-2 text-sm font-medium text-amber-brand-foreground hover:opacity-90">Record Payment</button>}>
-        {ledger && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <Stat label="Total Purchases" value={formatPKR(ledger.totalPurchases)} />
-              <Stat label="Total Paid" value={formatPKR(ledger.totalPurchases - ledger.balanceDue)} />
-              <Stat label="Balance Due" value={formatPKR(ledger.balanceDue)} danger={ledger.balanceDue > 0} />
+        {ledger && (() => {
+          // Get fresh supplier data from list
+          const freshSupplier = list.find(s => s.id === ledger.id) || ledger;
+          
+          // Get all purchases for this supplier
+          const supplierPurchases = purchases.filter(p => p.supplierId === freshSupplier.id);
+          
+          // Build ledger entries with both purchases and payments
+          const entries: Array<{
+            date: string;
+            desc: string;
+            debit: number;
+            credit: number;
+            bal: number;
+            sortDate: Date;
+          }> = [];
+          
+          let runningBalance = freshSupplier.openingBalance;
+          
+          // Opening balance
+          if (freshSupplier.openingBalance > 0) {
+            entries.push({
+              date: "Opening",
+              desc: "Opening Balance",
+              debit: freshSupplier.openingBalance,
+              credit: 0,
+              bal: runningBalance,
+              sortDate: new Date(0), // Very old date for sorting
+            });
+          }
+          
+          // Add purchase orders
+          supplierPurchases.forEach(purchase => {
+            entries.push({
+              date: formatDate(purchase.date),
+              desc: `Purchase Order: ${purchase.po}`,
+              debit: purchase.total,
+              credit: 0,
+              bal: 0, // Will calculate after sorting
+              sortDate: new Date(purchase.date),
+            });
+          });
+          
+          // Add payments
+          ledgerPayments.forEach(payment => {
+            entries.push({
+              date: formatDate(payment.date),
+              desc: payment.description || "Payment",
+              debit: 0,
+              credit: payment.amount,
+              bal: 0, // Will calculate after sorting
+              sortDate: new Date(payment.date),
+            });
+          });
+          
+          // Sort by date
+          entries.sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
+          
+          // Calculate running balance
+          entries.forEach(entry => {
+            if (entry.desc !== "Opening Balance") {
+              runningBalance += entry.debit - entry.credit;
+              entry.bal = runningBalance;
+            }
+          });
+          
+          // Calculate total paid from payments
+          const totalPaid = ledgerPayments.reduce((sum, p) => sum + p.amount, 0);
+          
+          // Calculate total purchases (including opening balance)
+          const totalPurchasesWithOpening = freshSupplier.totalPurchases + freshSupplier.openingBalance;
+          
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <Stat label="Total Purchases" value={formatPKR(totalPurchasesWithOpening)} />
+                <Stat label="Total Paid" value={formatPKR(totalPaid)} />
+                <Stat label="Balance Due" value={formatPKR(freshSupplier.balanceDue)} danger={freshSupplier.balanceDue > 0} />
+              </div>
+              <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+                <thead className="bg-cream/60 text-xs uppercase text-muted-foreground"><tr>
+                  <th className="text-left p-2">Date</th><th className="text-left p-2">Description</th>
+                  <th className="text-right p-2">Debit</th><th className="text-right p-2">Credit</th><th className="text-right p-2">Balance</th>
+                </tr></thead>
+                <tbody>
+                  {entries.length > 0 ? entries.map((r, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="p-2 text-muted-foreground">{r.date}</td>
+                      <td className="p-2">{r.desc}</td>
+                      <td className="p-2 text-right tabular-nums text-destructive">{r.debit ? formatPKR(r.debit) : "â€”"}</td>
+                      <td className="p-2 text-right tabular-nums text-success">{r.credit ? formatPKR(r.credit) : "â€”"}</td>
+                      <td className="p-2 text-right tabular-nums font-medium text-walnut">{formatPKR(r.bal)}</td>
+                    </tr>
+                  )) : (
+                    <tr className="border-t border-border">
+                      <td colSpan={5} className="p-4 text-center text-muted-foreground">No transactions yet</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-            <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
-              <thead className="bg-cream/60 text-xs uppercase text-muted-foreground"><tr>
-                <th className="text-left p-2">Date</th><th className="text-left p-2">Description</th>
-                <th className="text-right p-2">Debit</th><th className="text-right p-2">Credit</th><th className="text-right p-2">Balance</th>
-              </tr></thead>
-              <tbody>
-                {[
-                  { date: formatDate(new Date().toISOString()), desc: "Opening Balance", debit: ledger.openingBalance, credit: 0, bal: ledger.openingBalance },
-                ].map((r, i) => (
-                  <tr key={i} className="border-t border-border">
-                    <td className="p-2 text-muted-foreground">{r.date}</td>
-                    <td className="p-2">{r.desc}</td>
-                    <td className="p-2 text-right tabular-nums">{r.debit ? formatPKR(r.debit) : "—"}</td>
-                    <td className="p-2 text-right tabular-nums text-success">{r.credit ? formatPKR(r.credit) : "—"}</td>
-                    <td className="p-2 text-right tabular-nums font-medium text-walnut">{formatPKR(r.bal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       <PaymentModal supplier={paying} onClose={() => setPaying(null)} onSave={handlePayment} />

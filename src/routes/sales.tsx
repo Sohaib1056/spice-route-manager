@@ -7,18 +7,20 @@ import { EmptyState } from "@/components/EmptyState";
 import { formatPKR, formatDate } from "@/lib/format";
 import { store, type Sale, type Product } from "@/lib/store";
 import { TransactionRow, StatusPill } from "@/components/TransactionUtils";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface CartItem { productId: string; name: string; qty: number; price: number; unit: string; }
 
 // --- Sub-components ---
 
 function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) => void, products: Product[] }) {
+  const { settings } = useSettings();
   const [q, setQ] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState("");
   const [phone, setPhone] = useState("");
   const [discount, setDiscount] = useState(0);
-  const [taxRate, setTaxRate] = useState(5);
+  const [taxRate, setTaxRate] = useState(settings?.defaultTax ?? 5);
   const [payment, setPayment] = useState<"Cash" | "Credit" | "Bank Transfer">("Cash");
   const [received, setReceived] = useState(0);
 
@@ -64,6 +66,249 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
     setCart([]); setCustomer(""); setPhone(""); setDiscount(0); setReceived(0);
   };
 
+  const printReceipt = () => {
+    if (cart.length === 0) {
+      toast.error("Cart khaali hai! Pehle items add karein.");
+      return;
+    }
+
+    // Create thermal receipt HTML
+    const receiptHTML = `
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Receipt</title>
+        <style>
+          @page { 
+            size: 80mm auto;
+            margin: 0;
+          }
+          @media print {
+            body { margin: 0; }
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 8mm 5mm;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #000;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .header { 
+            text-align: center; 
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+          }
+          .company-name { 
+            font-size: 20px; 
+            font-weight: bold; 
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+          }
+          .company-info { 
+            font-size: 9px; 
+            color: #333;
+            line-height: 1.3;
+          }
+          .line { 
+            border-top: 1px dashed #000; 
+            margin: 8px 0; 
+          }
+          .line-solid { 
+            border-top: 1px solid #000; 
+            margin: 8px 0; 
+          }
+          .row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin: 3px 0;
+            font-size: 10px;
+          }
+          .row-bold {
+            display: flex; 
+            justify-content: space-between; 
+            margin: 3px 0;
+            font-weight: bold;
+            font-size: 11px;
+          }
+          .section-title {
+            font-weight: bold;
+            font-size: 11px;
+            margin: 8px 0 4px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .item-name { 
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 2px;
+          }
+          .item-details { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 10px;
+            color: #333;
+            margin-bottom: 6px;
+          }
+          .total-section {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 2px solid #000;
+          }
+          .grand-total { 
+            display: flex; 
+            justify-content: space-between;
+            font-weight: bold; 
+            font-size: 14px;
+            margin: 6px 0;
+            padding: 4px 0;
+          }
+          .footer { 
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px dashed #000;
+            text-align: center;
+            font-size: 9px;
+            line-height: 1.4;
+          }
+          .thank-you {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 4px;
+          }
+          .powered-by {
+            margin-top: 8px;
+            font-size: 8px;
+            color: #666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">DRYFRUIT PRO</div>
+          <div class="company-info">
+            Spice Route Manager<br/>
+            Tel: +92 300 1234567<br/>
+            www.dryfruitpro.com
+          </div>
+        </div>
+        
+        <div class="row-bold">
+          <span>Invoice #:</span>
+          <span>INV-${Math.floor(Math.random() * 9000) + 2000}</span>
+        </div>
+        <div class="row">
+          <span>Date:</span>
+          <span>${new Date().toLocaleDateString('en-GB')}</span>
+        </div>
+        <div class="row">
+          <span>Time:</span>
+          <span>${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+        </div>
+        <div class="row">
+          <span>Customer:</span>
+          <span>${customer || 'Walk-in'}</span>
+        </div>
+        ${phone ? `<div class="row"><span>Phone:</span><span>${phone}</span></div>` : ''}
+        
+        <div class="line-solid"></div>
+        <div class="section-title">ITEMS</div>
+        <div class="line"></div>
+        
+        ${cart.map(item => `
+          <div class="item-name">${item.name}</div>
+          <div class="item-details">
+            <span>${item.qty} ${item.unit} Ã— ${formatPKR(item.price)}</span>
+            <span>${formatPKR(item.qty * item.price)}</span>
+          </div>
+        `).join('')}
+        
+        <div class="line-solid"></div>
+        
+        <div class="row">
+          <span>Subtotal:</span>
+          <span>${formatPKR(subtotal)}</span>
+        </div>
+        ${discount > 0 ? `
+        <div class="row">
+          <span>Discount:</span>
+          <span>- ${formatPKR(discount)}</span>
+        </div>` : ''}
+        <div class="row">
+          <span>Tax (${taxRate}%):</span>
+          <span>${formatPKR(tax)}</span>
+        </div>
+        
+        <div class="total-section">
+          <div class="grand-total">
+            <span>TOTAL:</span>
+            <span>${formatPKR(total)}</span>
+          </div>
+        </div>
+        
+        <div class="line"></div>
+        
+        <div class="row-bold">
+          <span>Payment Method:</span>
+          <span>${payment}</span>
+        </div>
+        ${payment === 'Cash' ? `
+        <div class="row">
+          <span>Received:</span>
+          <span>${formatPKR(received)}</span>
+        </div>
+        <div class="row">
+          <span>Change:</span>
+          <span>${formatPKR(Math.max(0, change))}</span>
+        </div>` : ''}
+        
+        <div class="footer">
+          <div class="thank-you">Thank You! - Shukriya!</div>
+          <div>Your satisfaction is our priority</div>
+          <div>Please visit again</div>
+          <div class="powered-by">Powered by DryFruit Pro</div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(receiptHTML);
+      iframeDoc.close();
+
+      iframe.contentWindow?.focus();
+      
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 250);
+
+      toast.success("Receipt print kar rahe hain...");
+    } else {
+      toast.error("Print nahi ho saka.");
+      document.body.removeChild(iframe);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
       <div className="lg:col-span-3 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -101,7 +346,7 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
             <div key={c.productId} className="flex items-center gap-2 rounded-lg bg-cream/60 p-2">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-walnut truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} × {c.qty} {c.unit}</p>
+                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} ï¿½ {c.qty} {c.unit}</p>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => setQty(c.productId, -1)} className="rounded-md border border-border p-1 text-walnut hover:bg-cream"><Minus className="h-3 w-3" /></button>
@@ -160,7 +405,9 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
         <button onClick={complete} className="mt-4 w-full rounded-lg bg-amber-brand py-2.5 text-sm font-semibold text-amber-brand-foreground hover:opacity-90">
           Complete Sale
         </button>
-        <button className="mt-2 w-full rounded-lg border border-border py-2 text-sm font-medium text-walnut hover:bg-cream inline-flex items-center justify-center gap-2"><Printer className="h-4 w-4" /> Print Invoice</button>
+        <button onClick={printReceipt} className="mt-2 w-full rounded-lg border border-border py-2 text-sm font-medium text-walnut hover:bg-cream inline-flex items-center justify-center gap-2">
+          <Printer className="h-4 w-4" /> Print Invoice
+        </button>
       </div>
     </div>
   );
@@ -182,6 +429,238 @@ function History({ list }: { list: Sale[] }) {
     if (to && new Date(s.date) > new Date(to)) return false;
     return true;
   }), [list, q, pay, status, from, to]);
+
+  const printThermalReceipt = (sale: Sale) => {
+    const receiptHTML = `
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Receipt - ${sale.invoice}</title>
+        <style>
+          @page { 
+            size: 80mm auto;
+            margin: 0;
+          }
+          @media print {
+            body { margin: 0; }
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            width: 80mm;
+            margin: 0 auto;
+            padding: 8mm 5mm;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #000;
+          }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .header { 
+            text-align: center; 
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+          }
+          .company-name { 
+            font-size: 20px; 
+            font-weight: bold; 
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+          }
+          .company-info { 
+            font-size: 9px; 
+            color: #333;
+            line-height: 1.3;
+          }
+          .line { 
+            border-top: 1px dashed #000; 
+            margin: 8px 0; 
+          }
+          .line-solid { 
+            border-top: 1px solid #000; 
+            margin: 8px 0; 
+          }
+          .row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin: 3px 0;
+            font-size: 10px;
+          }
+          .row-bold {
+            display: flex; 
+            justify-content: space-between; 
+            margin: 3px 0;
+            font-weight: bold;
+            font-size: 11px;
+          }
+          .section-title {
+            font-weight: bold;
+            font-size: 11px;
+            margin: 8px 0 4px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .item-name { 
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 2px;
+          }
+          .item-details { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 10px;
+            color: #333;
+            margin-bottom: 6px;
+          }
+          .total-section {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 2px solid #000;
+          }
+          .grand-total { 
+            display: flex; 
+            justify-content: space-between;
+            font-weight: bold; 
+            font-size: 14px;
+            margin: 6px 0;
+            padding: 4px 0;
+          }
+          .footer { 
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px dashed #000;
+            text-align: center;
+            font-size: 9px;
+            line-height: 1.4;
+          }
+          .thank-you {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 4px;
+          }
+          .powered-by {
+            margin-top: 8px;
+            font-size: 8px;
+            color: #666;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">DRYFRUIT PRO</div>
+          <div class="company-info">
+            Spice Route Manager<br/>
+            Tel: +92 300 1234567<br/>
+            www.dryfruitpro.com
+          </div>
+        </div>
+        
+        <div class="row-bold">
+          <span>Invoice #:</span>
+          <span>${sale.invoice}</span>
+        </div>
+        <div class="row">
+          <span>Date:</span>
+          <span>${formatDate(sale.date)}</span>
+        </div>
+        <div class="row">
+          <span>Time:</span>
+          <span>${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+        </div>
+        <div class="row">
+          <span>Customer:</span>
+          <span>${sale.customer}</span>
+        </div>
+        ${sale.customerPhone ? `<div class="row"><span>Phone:</span><span>${sale.customerPhone}</span></div>` : ''}
+        
+        <div class="line-solid"></div>
+        <div class="section-title">ITEMS</div>
+        <div class="line"></div>
+        
+        ${sale.items.map(item => `
+          <div class="item-name">${item.name}</div>
+          <div class="item-details">
+            <span>${item.qty} ${item.unit || 'pcs'} Ã— PKR ${item.price.toLocaleString()}</span>
+            <span>PKR ${(item.qty * item.price).toLocaleString()}</span>
+          </div>
+        `).join('')}
+        
+        <div class="line-solid"></div>
+        
+        <div class="row">
+          <span>Subtotal:</span>
+          <span>PKR ${sale.subtotal.toLocaleString()}</span>
+        </div>
+        ${sale.discount > 0 ? `
+        <div class="row">
+          <span>Discount:</span>
+          <span>- PKR ${sale.discount.toLocaleString()}</span>
+        </div>` : ''}
+        <div class="row">
+          <span>Tax:</span>
+          <span>PKR ${sale.tax.toLocaleString()}</span>
+        </div>
+        
+        <div class="total-section">
+          <div class="grand-total">
+            <span>TOTAL:</span>
+            <span>PKR ${sale.total.toLocaleString()}</span>
+          </div>
+        </div>
+        
+        <div class="line"></div>
+        
+        <div class="row-bold">
+          <span>Payment Method:</span>
+          <span>${sale.payment}</span>
+        </div>
+        <div class="row">
+          <span>Status:</span>
+          <span>${sale.status}</span>
+        </div>
+        
+        <div class="footer">
+          <div class="thank-you">Thank You! - Shukriya!</div>
+          <div>Your satisfaction is our priority</div>
+          <div>Please visit again</div>
+          <div class="powered-by">Powered by DryFruit Pro</div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create iframe for printing
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(receiptHTML);
+      iframeDoc.close();
+
+      iframe.contentWindow?.focus();
+      
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 250);
+
+      toast.success("Receipt print kar rahe hain...");
+    } else {
+      toast.error("Print nahi ho saka.");
+      document.body.removeChild(iframe);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -220,7 +699,22 @@ function History({ list }: { list: Sale[] }) {
                   <td className="p-3 text-muted-foreground">{s.payment}</td>
                   <td className="p-3"><StatusPill type="sale" status={s.status} /></td>
                   <td className="p-3 text-right">
-                    <button onClick={() => setView(s)} className="rounded-md p-1.5 text-info hover:bg-info/10"><Eye className="h-4 w-4" /></button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button 
+                        onClick={() => printThermalReceipt(s)} 
+                        className="rounded-md p-1.5 text-success hover:bg-success/10"
+                        title="Print Receipt"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => setView(s)} 
+                        className="rounded-md p-1.5 text-info hover:bg-info/10"
+                        title="View Details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -231,7 +725,25 @@ function History({ list }: { list: Sale[] }) {
       </div>
 
       <Modal open={!!view} onClose={() => setView(null)} title={`Invoice ${view?.invoice ?? ""}`} size="lg"
-        footer={<><button onClick={() => window.print()} className="rounded-lg bg-walnut px-4 py-2 text-sm font-medium text-cream hover:opacity-90 inline-flex items-center gap-2"><Printer className="h-4 w-4" /> Print</button><button onClick={() => setView(null)} className="rounded-lg border border-border px-4 py-2 text-sm">Close</button></>}>
+        footer={
+          <>
+            <button 
+              onClick={() => view && printThermalReceipt(view)} 
+              className="rounded-lg bg-success px-4 py-2 text-sm font-medium text-white hover:opacity-90 inline-flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" /> Thermal Print
+            </button>
+            <button 
+              onClick={() => window.print()} 
+              className="rounded-lg bg-walnut px-4 py-2 text-sm font-medium text-cream hover:opacity-90 inline-flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" /> A4 Print
+            </button>
+            <button onClick={() => setView(null)} className="rounded-lg border border-border px-4 py-2 text-sm">
+              Close
+            </button>
+          </>
+        }>
         {view && (
           <div className="print-area">
             <div className="text-center border-b border-border pb-4">
@@ -256,7 +768,7 @@ function History({ list }: { list: Sale[] }) {
               <TransactionRow label="Tax" value={formatPKR(view.tax)} />
               <TransactionRow label="Grand Total" value={formatPKR(view.total)} bold />
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border">Shukriya for your business — Aap ka muamal, hamare haath mein.</p>
+            <p className="text-center text-xs text-muted-foreground mt-6 pt-4 border-t border-border">Shukriya for your business ï¿½ Aap ka muamal, hamare haath mein.</p>
           </div>
         )}
       </Modal>
@@ -276,7 +788,7 @@ export default function SalesPage() {
       await store.addSale(s);
       setList(store.getSales());
       setProducts(store.getProducts());
-      toast.success(`Sale completed — ${s.invoice}`);
+      toast.success(`Sale completed ï¿½ ${s.invoice}`);
     } catch (error) {
       toast.error("Failed to complete sale");
     }

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Plus, Trash2, Eye, Pencil, CheckCircle2, Upload, FileText, X } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
@@ -8,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { formatPKR, formatDate } from "@/lib/format";
 import { store, type Purchase, type Product, type Supplier } from "@/lib/store";
 import { TransactionRow, StatusPill } from "@/components/TransactionUtils";
+import { useSettings } from "@/contexts/SettingsContext";
 
 // --- Types ---
 
@@ -29,18 +31,77 @@ interface POForm {
 
 // --- Sub-components ---
 
-function NewPOModal({ open, onClose, onSave, products, suppliers }: { open: boolean; onClose: () => void; onSave: (p: Omit<Purchase, "id">) => void; products: Product[]; suppliers: Supplier[] }) {
-  const { register, control, handleSubmit, watch, reset } = useForm<POForm>({
+function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSelectedProductId }: { 
+  open: boolean; 
+  editing?: Purchase;
+  onClose: () => void; 
+  onSave: (p: Omit<Purchase, "id">) => void; 
+  products: Product[]; 
+  suppliers: Supplier[];
+  preSelectedProductId?: string;
+}) {
+  const { settings } = useSettings();
+  const { register, control, handleSubmit, watch, reset, setValue } = useForm<POForm>({
     defaultValues: {
       supplierId: suppliers[0]?.id || "",
       date: new Date().toISOString().slice(0, 10),
       expectedDelivery: "",
       paymentTerms: "Net 30",
       items: [{ productId: products[0]?.id || "", qty: 1, price: products[0]?.buyPrice || 0, discount: 0 }],
-      taxRate: 5,
+      taxRate: settings?.defaultTax ?? 5,
       notes: "",
     },
   });
+
+  // Reset form when editing changes or when pre-selected product changes
+  useEffect(() => {
+    if (editing) {
+      console.log("Editing purchase:", editing);
+      const calculatedTax = editing.tax / (editing.subtotal - editing.discount) * 100;
+      reset({
+        supplierId: editing.supplierId,
+        date: editing.date,
+        expectedDelivery: "",
+        paymentTerms: "Net 30",
+        items: editing.items.map(item => ({
+          productId: item.productId,
+          qty: item.qty,
+          price: item.price,
+          discount: 0,
+          unit: item.unit
+        })),
+        taxRate: calculatedTax || (settings?.defaultTax ?? 5),
+        notes: "",
+      });
+    } else if (open && !editing) {
+      console.log("Creating new purchase");
+      
+      // If there's a pre-selected product, use it
+      let initialProduct = products[0];
+      if (preSelectedProductId) {
+        const foundProduct = products.find(p => p.id === preSelectedProductId || p._id === preSelectedProductId);
+        if (foundProduct) {
+          initialProduct = foundProduct;
+          console.log("Pre-selected product:", foundProduct.name);
+        }
+      }
+      
+      reset({
+        supplierId: suppliers[0]?.id || "",
+        date: new Date().toISOString().slice(0, 10),
+        expectedDelivery: "",
+        paymentTerms: "Net 30",
+        items: [{ 
+          productId: initialProduct?.id || "", 
+          qty: initialProduct?.minStock || 100, // Suggest minimum stock as quantity
+          price: initialProduct?.buyPrice || 0, 
+          discount: 0 
+        }],
+        taxRate: settings?.defaultTax ?? 5,
+        notes: preSelectedProductId ? "Reorder from Low Stock Alert" : "",
+      });
+    }
+  }, [editing, open, reset, suppliers, products, settings, preSelectedProductId]);
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const items = watch("items");
   const taxRate = watch("taxRate");
@@ -52,7 +113,7 @@ function NewPOModal({ open, onClose, onSave, products, suppliers }: { open: bool
   const submit = (vals: POForm, status: "Draft" | "Sent") => {
     const sup = suppliers.find((s) => s.id === vals.supplierId)!;
     const po: Omit<Purchase, "id"> = {
-      po: `PO-${Math.floor(Math.random() * 9000) + 3000}`,
+      po: editing?.po || `PO-${Math.floor(Math.random() * 9000) + 3000}`,
       date: vals.date,
       supplierId: sup.id,
       supplierName: sup.name,
@@ -61,7 +122,7 @@ function NewPOModal({ open, onClose, onSave, products, suppliers }: { open: bool
         return { productId: p.id, name: p.name, qty: Number(it.qty), price: Number(it.price), unit: p.unit };
       }),
       subtotal, discount: totalDiscount, tax, total: grand,
-      status, paymentStatus: "Pending",
+      status, paymentStatus: editing?.paymentStatus || "Pending",
     };
     onSave(po);
     reset();
@@ -71,7 +132,7 @@ function NewPOModal({ open, onClose, onSave, products, suppliers }: { open: bool
     <Modal
       open={open}
       onClose={() => { onClose(); reset(); }}
-      title="New Purchase Order"
+      title={editing ? `Edit Purchase Order - ${editing.po}` : "New Purchase Order"}
       size="xl"
       footer={
         <>
@@ -105,7 +166,18 @@ function NewPOModal({ open, onClose, onSave, products, suppliers }: { open: bool
                     <tr key={f.id} className="border-t border-border">
                       <td className="p-2">
                         <Controller control={control} name={`items.${idx}.productId`} render={({ field }) => (
-                          <select {...field} className="input">
+                          <select 
+                            {...field} 
+                            className="input"
+                            onChange={(e) => {
+                              field.onChange(e);
+                              const selectedProduct = products.find(p => p.id === e.target.value);
+                              if (selectedProduct) {
+                                // Auto-fill the buyPrice when product is selected
+                                setValue(`items.${idx}.price`, selectedProduct.buyPrice);
+                              }
+                            }}
+                          >
                             {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.unit})</option>)}
                           </select>
                         )} />
@@ -208,7 +280,7 @@ function ReceiveOrderModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Receive Order — ${purchase.po}`}
+      title={`Receive Order ï¿½ ${purchase.po}`}
       size="lg"
       footer={
         <>
@@ -336,13 +408,26 @@ function ReceiveOrderModal({
 // --- Main Component ---
 
 export default function PurchasePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [list, setList] = useState<Purchase[]>(store.getPurchases());
   const [products, setProducts] = useState<Product[]>(store.getProducts());
   const [suppliers, setSuppliers] = useState<Supplier[]>(store.getSuppliers());
   const [tab, setTab] = useState<"po" | "grn">("po");
   const [showForm, setShowForm] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [view, setView] = useState<Purchase | null>(null);
   const [receiveModal, setReceiveModal] = useState<Purchase | null>(null);
+
+  // Check for product parameter in URL and auto-open modal
+  useEffect(() => {
+    const productId = searchParams.get('product');
+    if (productId && products.length > 0) {
+      console.log("Auto-opening purchase modal for product:", productId);
+      setShowForm(true);
+      // Clear the URL parameter after opening
+      setSearchParams({});
+    }
+  }, [searchParams, products, setSearchParams]);
 
   const stats = useMemo(() => ({
     month: list.reduce((s, p) => s + p.total, 0),
@@ -353,13 +438,24 @@ export default function PurchasePage() {
 
   const handleSave = async (po: Omit<Purchase, "id">) => {
     try {
-      await store.addPurchase(po);
-      setList(store.getPurchases());
-      setProducts(store.getProducts());
-      setShowForm(false);
-      toast.success("Purchase order created");
+      if (editingPurchase) {
+        // Update existing purchase
+        await store.updatePurchase(editingPurchase.id, po);
+        setList(store.getPurchases());
+        setProducts(store.getProducts());
+        setEditingPurchase(null);
+        setShowForm(false);
+        toast.success("Purchase order updated");
+      } else {
+        // Create new purchase
+        await store.addPurchase(po);
+        setList(store.getPurchases());
+        setProducts(store.getProducts());
+        setShowForm(false);
+        toast.success("Purchase order created");
+      }
     } catch (error) {
-      toast.error("Failed to create purchase order");
+      toast.error(editingPurchase ? "Failed to update purchase order" : "Failed to create purchase order");
     }
   };
 
@@ -372,6 +468,21 @@ export default function PurchasePage() {
       toast.success("Order received successfully!");
     } catch (error) {
       toast.error("Failed to receive order");
+    }
+  };
+
+  const handleDelete = async (id: string, poNumber: string) => {
+    if (!confirm(`Are you sure you want to delete ${poNumber}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await store.deletePurchase(id);
+      setList(store.getPurchases());
+      setProducts(store.getProducts());
+      toast.success("Purchase order deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete purchase order");
     }
   };
 
@@ -430,8 +541,10 @@ export default function PurchasePage() {
                       {p.status !== "Received" && (
                         <button onClick={() => setReceiveModal(p)} className="rounded-md p-1.5 text-success hover:bg-success/10" aria-label="Receive"><CheckCircle2 className="h-4 w-4" /></button>
                       )}
-                      <button className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
-                      <button className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                      {p.status !== "Received" && (
+                        <button onClick={() => setEditingPurchase(p)} className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
+                      )}
+                      <button onClick={() => handleDelete(p.id, p.po)} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -442,9 +555,20 @@ export default function PurchasePage() {
         </div>
       </div>
 
-      <NewPOModal open={showForm} onClose={() => setShowForm(false)} onSave={handleSave} products={products} suppliers={suppliers} />
+      <NewPOModal 
+        open={showForm || !!editingPurchase} 
+        editing={editingPurchase || undefined}
+        onClose={() => { 
+          setShowForm(false); 
+          setEditingPurchase(null); 
+        }} 
+        onSave={handleSave} 
+        products={products} 
+        suppliers={suppliers}
+        preSelectedProductId={searchParams.get('product') || undefined}
+      />
 
-      <Modal open={!!view} onClose={() => setView(null)} title={`Purchase Order — ${view?.po ?? ""}`} size="xl">
+      <Modal open={!!view} onClose={() => setView(null)} title={`Purchase Order ï¿½ ${view?.po ?? ""}`} size="xl">
         {view && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

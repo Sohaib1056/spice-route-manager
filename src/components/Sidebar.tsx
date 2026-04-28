@@ -1,7 +1,7 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Package, Boxes, ShoppingCart, Receipt, Truck,
-  TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, LogOut,
+  TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, Shield, Bell, AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -12,37 +12,41 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   adminOnly?: boolean;
+  permissionKey?: string; // Add permission key
 }
 
 const groups: { label: string; items: NavItem[] }[] = [
   {
     label: "Main",
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/inventory", label: "Inventory", icon: Package },
-      { to: "/stock", label: "Stock", icon: Boxes },
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, permissionKey: "dashboard" },
+      { to: "/inventory", label: "Inventory", icon: Package, permissionKey: "inventory" },
+      { to: "/stock", label: "Stock", icon: Boxes, permissionKey: "stock" },
+      { to: "/low-stock", label: "Low Stock Alert", icon: AlertTriangle, permissionKey: "inventory" },
     ],
   },
   {
     label: "Transactions",
     items: [
-      { to: "/purchase", label: "Purchase", icon: ShoppingCart },
-      { to: "/sales", label: "Sales / POS", icon: Receipt },
-      { to: "/supplier", label: "Suppliers", icon: Truck },
+      { to: "/purchase", label: "Purchase", icon: ShoppingCart, permissionKey: "purchase" },
+      { to: "/sales", label: "Sales / POS", icon: Receipt, permissionKey: "sales" },
+      { to: "/supplier", label: "Suppliers", icon: Truck, permissionKey: "supplier" },
     ],
   },
   {
     label: "Finance",
     items: [
-      { to: "/finance", label: "Finance", icon: TrendingUp },
-      { to: "/reports", label: "Reports", icon: BarChart3 },
+      { to: "/finance", label: "Finance", icon: TrendingUp, permissionKey: "finance" },
+      { to: "/reports", label: "Reports", icon: BarChart3, permissionKey: "reports" },
     ],
   },
   {
     label: "Admin",
     items: [
-      { to: "/users", label: "Users", icon: UsersIcon, adminOnly: true },
-      { to: "/settings", label: "Settings", icon: SettingsIcon, adminOnly: true },
+      { to: "/users", label: "Users", icon: UsersIcon, adminOnly: true, permissionKey: "users" },
+      { to: "/permissions", label: "Permissions", icon: Shield, adminOnly: true, permissionKey: "users" },
+      { to: "/notifications", label: "Audit Logs", icon: Bell, adminOnly: true, permissionKey: "users" },
+      { to: "/settings", label: "Settings", icon: SettingsIcon, adminOnly: true, permissionKey: "settings" },
     ],
   },
 ];
@@ -51,12 +55,36 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const { user, isAdmin } = useAuth();
   const location = useLocation();
   const pathname = location.pathname;
-  const navigate = useNavigate();
 
-  const handleLogout = () => {
-    // Clear any auth data if needed
-    // localStorage.removeItem('authToken');
-    navigate("/login");
+  // Don't render if no user (safety check)
+  if (!user) return null;
+
+  // Get user permissions from localStorage
+  const getUserPermissions = () => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        return parsed.permissions || {};
+      }
+    } catch (error) {
+      console.error("Error reading permissions:", error);
+    }
+    return {};
+  };
+
+  const userPermissions = getUserPermissions();
+
+  // Check if user has permission for a specific page
+  const hasPermission = (permissionKey?: string) => {
+    // Admin has all permissions
+    if (isAdmin) return true;
+    
+    // If no permission key specified, allow access
+    if (!permissionKey) return true;
+    
+    // Check user's specific permission
+    return userPermissions[permissionKey] === true;
   };
 
   return (
@@ -78,8 +106,17 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
           {groups.map((group) => {
-            const items = group.items.filter((i) => !i.adminOnly || isAdmin);
+            // Filter items based on admin status AND permissions
+            const items = group.items.filter((i) => {
+              // Check admin-only restriction
+              if (i.adminOnly && !isAdmin) return false;
+              
+              // Check permission
+              return hasPermission(i.permissionKey);
+            });
+            
             if (!items.length) return null;
+            
             return (
               <div key={group.label}>
                 <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-cream/50">{group.label}</p>
@@ -110,27 +147,6 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             );
           })}
         </nav>
-
-        {/* User footer */}
-        <div className="border-t border-sidebar-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-brand text-amber-brand-foreground font-semibold text-sm">
-              {user.initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium text-cream">{user.name}</p>
-              <p className="text-[10px] uppercase tracking-wide text-amber-brand">{user.role}</p>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="rounded-md p-2 text-cream/70 hover:bg-sidebar-accent hover:text-cream transition-colors" 
-              aria-label="Logout"
-              title="Logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
       </aside>
     </>
   );

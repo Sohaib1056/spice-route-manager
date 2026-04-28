@@ -2,7 +2,6 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IProduct extends Document {
   name: string;
-  urdu: string;
   sku: string;
   category: string;
   unit: "kg" | "g" | "pack";
@@ -16,7 +15,6 @@ export interface IProduct extends Document {
 
 const ProductSchema: Schema = new Schema({
   name: { type: String, required: true },
-  urdu: { type: String, default: "" },
   sku: { type: String, required: true, unique: true },
   category: { type: String, required: true },
   unit: { type: String, enum: ["kg", "g", "pack"], default: "kg" },

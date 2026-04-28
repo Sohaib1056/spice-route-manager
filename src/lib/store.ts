@@ -5,7 +5,6 @@ export interface Product {
   id: string;
   _id?: string;
   name: string;
-  urdu: string;
   sku: string;
   category: string;
   unit: "kg" | "g" | "pack";
@@ -197,6 +196,11 @@ class DataStore {
           if (product) product.stock += item.qty;
         });
       }
+      
+      // Refresh suppliers to get updated totals and balance
+      const suppRes = await api.get("/suppliers");
+      this.suppliers = suppRes.data.map(normalize);
+      
       await this.refreshDashboard();
       return newPurchase;
     } catch (error) {
@@ -215,6 +219,11 @@ class DataStore {
         const product = this.products.find(p => p.id === item.productId);
         if (product) product.stock += item.qty;
       });
+      
+      // Refresh suppliers to get updated totals
+      const suppRes = await api.get("/suppliers");
+      this.suppliers = suppRes.data.map(normalize);
+      
       await this.refreshDashboard();
       return updatedPurchase;
     } catch (error) {
@@ -271,6 +280,74 @@ class DataStore {
       return updatedProd;
     } catch (error) {
       console.error("Error adjusting stock", error);
+      throw error;
+    }
+  }
+
+  async addSupplier(supplier: Omit<Supplier, "id">) {
+    try {
+      const res = await api.post("/suppliers", supplier);
+      const newSupp = normalize(res.data);
+      this.suppliers = [newSupp, ...this.suppliers];
+      return newSupp;
+    } catch (error) {
+      console.error("Error adding supplier", error);
+      throw error;
+    }
+  }
+
+  async updateSupplier(id: string, supplier: Partial<Supplier>) {
+    try {
+      const res = await api.put(`/suppliers/${id}`, supplier);
+      const updatedSupp = normalize(res.data);
+      this.suppliers = this.suppliers.map(s => s.id === id ? updatedSupp : s);
+      return updatedSupp;
+    } catch (error) {
+      console.error("Error updating supplier", error);
+      throw error;
+    }
+  }
+
+  async deleteSupplier(id: string) {
+    try {
+      await api.delete(`/suppliers/${id}`);
+      this.suppliers = this.suppliers.filter(s => s.id !== id);
+    } catch (error) {
+      console.error("Error deleting supplier", error);
+      throw error;
+    }
+  }
+
+  async updatePurchase(id: string, purchase: Partial<Purchase>) {
+    try {
+      const res = await api.put(`/purchases/${id}`, purchase);
+      const updatedPurchase = normalize(res.data);
+      this.purchases = this.purchases.map(p => p.id === id ? updatedPurchase : p);
+      
+      // Refresh suppliers to get updated totals
+      const suppRes = await api.get("/suppliers");
+      this.suppliers = suppRes.data.map(normalize);
+      
+      await this.refreshDashboard();
+      return updatedPurchase;
+    } catch (error) {
+      console.error("Error updating purchase", error);
+      throw error;
+    }
+  }
+
+  async deletePurchase(id: string) {
+    try {
+      await api.delete(`/purchases/${id}`);
+      this.purchases = this.purchases.filter(p => p.id !== id);
+      
+      // Refresh suppliers to get updated totals
+      const suppRes = await api.get("/suppliers");
+      this.suppliers = suppRes.data.map(normalize);
+      
+      await this.refreshDashboard();
+    } catch (error) {
+      console.error("Error deleting purchase", error);
       throw error;
     }
   }
