@@ -36,11 +36,11 @@ export default function CartPage() {
               Abhi tak koi product add nahi kiya. Humare premium dry fruits dekhein!
             </p>
             <Link
-              to="/"
+              to="/products"
               className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-deep transition-colors duration-200 text-lg shadow-lg shadow-primary/20"
             >
               <ArrowLeft className="w-5 h-5" />
-              Shopping Karein
+              Start Shopping
             </Link>
           </div>
         </div>
@@ -58,11 +58,11 @@ export default function CartPage() {
             <p className="text-text-gray mt-1 text-lg">{totalItems} {totalItems === 1 ? 'item' : 'items'} cart mein</p>
           </div>
           <Link
-            to="/"
+            to="/products"
             className="inline-flex items-center gap-2 text-primary hover:text-primary-deep transition-colors duration-200 font-semibold"
           >
             <ArrowLeft className="w-5 h-5" />
-            Aur Shopping Karein
+            Continue Shopping
           </Link>
         </div>
 

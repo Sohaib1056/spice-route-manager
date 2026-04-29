@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { ShoppingBag, Truck, Shield, Star } from 'lucide-react';
 
 export default function Hero() {
@@ -35,13 +36,13 @@ export default function Hero() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start mb-10">
-              <a
-                href="#products"
+              <Link
+                to="/products"
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-deep transition-all duration-200 shadow-lg shadow-primary/20 text-lg"
               >
                 <ShoppingBag className="w-5 h-5" />
                 Abhi Order Karein
-              </a>
+              </Link>
               <a
                 href="https://wa.me/923211234567?text=Assalam%20o%20Alaikum!%20Mujhe%20dry%20fruits%20order%20karne%20hain"
                 target="_blank"
