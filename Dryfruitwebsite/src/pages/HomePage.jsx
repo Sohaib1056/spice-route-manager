@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Hero from '../components/Hero';
 import AboutSection from '../components/AboutSection';
@@ -8,6 +9,10 @@ import { ArrowRight } from 'lucide-react';
 
 export default function HomePage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Dashboard ke liye sirf featured/best seller products dikhao
   const featuredProducts = products

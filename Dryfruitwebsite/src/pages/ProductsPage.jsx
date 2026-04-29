@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { products, categories } from '../data/products';
@@ -9,6 +9,10 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
   const [sortBy, setSortBy] = useState('featured');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleProductClick = (product) => {
     navigate(`/product/${product.id}`);

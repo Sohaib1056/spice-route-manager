@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2, ArrowLeft, ShoppingBag, Truck, Shield, Tag, Phone, CheckCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 export default function CartPage() {
   const { items, totalPrice, totalItems, updateQuantity, removeItem, clearCart } = useCart();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const shipping = totalPrice >= 5000 ? 0 : 250;
   const grandTotal = totalPrice + shipping;
