@@ -70,19 +70,19 @@ export default function Hero() {
 
           {/* Right Column - Image/Visual */}
           <div className="flex justify-center md:justify-end">
-            <div className="relative">
-              <div className="w-full max-w-[380px] h-[380px] md:max-w-[450px] md:h-[450px] bg-gradient-to-br from-primary-light to-gold-light rounded-3xl flex items-center justify-center overflow-hidden shadow-xl">
-                <div className="text-center p-8">
-                  <div className="text-8xl md:text-9xl mb-4">
-                    <span role="img" aria-label="almonds">🥜</span>
-                  </div>
-                  <p className="text-3xl md:text-4xl font-bold text-primary mb-2">Premium</p>
-                  <p className="text-xl md:text-2xl text-text-gray">Dry Fruits</p>
-                </div>
+            <div className="relative group">
+              <div className="w-full max-w-[380px] h-[480px] md:max-w-[450px] md:h-[550px] bg-gradient-to-br from-primary-light to-gold-light rounded-3xl flex items-center justify-center overflow-hidden shadow-2xl relative">
+                <img 
+                  src="/dry fruit.jpg" 
+                  alt="Premium Dry Fruits" 
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                {/* Overlay for better text readability if needed or just for aesthetics */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
               </div>
               
               {/* Floating Badge */}
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl p-4 shadow-lg border border-border">
+              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl p-4 shadow-xl border border-border/50 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gold-light rounded-full flex items-center justify-center">
                     <Star className="w-6 h-6 text-accent-gold fill-accent-gold" />
@@ -93,6 +93,10 @@ export default function Hero() {
                   </div>
                 </div>
               </div>
+
+              {/* Decorative elements */}
+              <div className="absolute -top-4 -right-4 w-24 h-24 bg-accent-gold/10 rounded-full blur-2xl -z-10 animate-pulse" />
+              <div className="absolute top-1/2 -right-8 w-16 h-16 bg-primary/10 rounded-full blur-xl -z-10" />
             </div>
           </div>
         </div>

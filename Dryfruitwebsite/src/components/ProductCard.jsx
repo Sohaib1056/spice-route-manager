@@ -47,45 +47,47 @@ export default function ProductCard({ product, onProductClick }) {
   return (
     <div
       onClick={() => onProductClick(product)}
-      className="bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-border group"
+      className="bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl border border-slate-200 group flex flex-col h-full min-h-[380px]"
     >
       {/* Image Area */}
-      <div className="relative h-[200px] bg-gradient-to-br from-primary-soft to-gold-light/50 p-4 flex items-center justify-center">
+      <div className="relative h-[140px] md:h-[160px] bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
         {product.badge && (
           <span
-            className={`absolute top-3 left-3 px-3 py-1.5 text-xs font-bold rounded-full ${
+            className={`absolute top-2 left-2 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md z-10 ${
               product.badge === 'Best Seller'
-                ? 'bg-accent-gold text-white'
-                : 'bg-primary text-white'
+                ? 'bg-amber-500 text-white'
+                : 'bg-slate-800 text-white'
             }`}
           >
-            {product.badge === 'Best Seller' ? 'Bestseller' : product.badge}
+            {product.badge}
           </span>
         )}
         
-        {/* Product Emoji/Image */}
-        <div className="text-6xl group-hover:scale-110 transition-transform duration-300">
+        {/* Product Logo/Emoji */}
+        <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
           {product.emoji || '🥜'}
         </div>
         
-        {/* Rating Badge */}
-        <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
-          <Star className="w-3.5 h-3.5 text-accent-gold fill-accent-gold" />
-          <span className="text-xs font-semibold text-text-dark">{product.rating}</span>
+        {/* Rating */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 px-1.5 py-0.5 rounded shadow-sm border border-slate-100">
+          <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+          <span className="text-[10px] font-bold text-slate-700">{product.rating}</span>
         </div>
       </div>
 
       {/* Card Body */}
-      <div className="p-5">
-        <div className="mb-3">
-          <h3 className="font-bold text-lg text-text-dark mb-1 line-clamp-1">
+      <div className="p-4 flex flex-col flex-1">
+        <div className="mb-2">
+          <h3 className="font-bold text-slate-900 text-sm mb-0.5 line-clamp-1 group-hover:text-primary transition-colors">
             {product.name}
           </h3>
-          <p className="text-sm text-text-gray">{product.origin}</p>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+            {product.origin}
+          </p>
         </div>
 
-        {/* Weight Options */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        {/* Weight Selection */}
+        <div className="flex flex-wrap gap-1 mb-4">
           {product.weightOptions.map((weight) => (
             <button
               key={weight}
@@ -93,10 +95,10 @@ export default function ProductCard({ product, onProductClick }) {
                 e.stopPropagation();
                 setSelectedWeight(weight);
               }}
-              className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+              className={`px-2 py-1 text-[10px] font-black rounded transition-all ${
                 selectedWeight === weight
-                  ? 'bg-primary text-white shadow-md'
-                  : 'bg-primary-soft text-primary hover:bg-primary-light border border-transparent'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}
             >
               {weight}
@@ -105,38 +107,39 @@ export default function ProductCard({ product, onProductClick }) {
         </div>
 
         {/* Price & Stock */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <span className="text-2xl font-bold text-primary">
+        <div className="flex items-center justify-between mt-auto mb-4 pt-2 border-t border-slate-50">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Price</span>
+            <span className="text-base font-black text-slate-900 leading-none">
               Rs. {product.pricePerWeight[selectedWeight].toLocaleString()}
             </span>
           </div>
-          <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full border ${stockStatus.className}`}>
+          <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${stockStatus.className}`}>
             {stockStatus.text}
           </span>
         </div>
 
-        {/* Add to Cart Button */}
+        {/* Action Button - High Visibility */}
         <button
           onClick={handleAddToCart}
           disabled={product.stock === 0}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-bold text-base transition-all duration-200 ${
+          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-black uppercase tracking-widest text-xs transition-all shadow-md active:scale-95 ${
             product.stock === 0
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
               : isAdded
-              ? 'bg-success text-white'
-              : 'bg-primary text-white hover:bg-primary-deep shadow-lg shadow-primary/20 hover:shadow-xl'
+              ? 'bg-green-600 text-white shadow-green-200'
+              : 'bg-primary text-white hover:bg-primary-deep shadow-primary/20'
           }`}
         >
           {isAdded ? (
             <>
-              <Check className="w-5 h-5" />
-              Add Ho Gaya!
+              <Check className="w-3.5 h-3.5 stroke-[3px]" />
+              Added
             </>
           ) : (
             <>
-              <ShoppingCart className="w-5 h-5" />
-              Cart Mein Dalein
+              <ShoppingCart className="w-3.5 h-3.5 stroke-[2.5px]" />
+              Add to Cart
             </>
           )}
         </button>

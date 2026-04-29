@@ -95,28 +95,32 @@ export default function AboutSection() {
 
           {/* Right Column - Image */}
           <div className="flex justify-center">
-            <div className="relative">
-              <div className="w-full max-w-[400px] h-[350px] md:h-[400px] bg-gradient-to-br from-primary-light to-gold-light rounded-3xl flex items-center justify-center overflow-hidden">
-                <div className="grid grid-cols-2 gap-4 p-8">
-                  <div className="text-5xl text-center">🥜</div>
-                  <div className="text-5xl text-center">🌰</div>
-                  <div className="text-5xl text-center">🌴</div>
-                  <div className="text-5xl text-center">🍇</div>
-                </div>
+            <div className="relative group">
+              <div className="w-full max-w-[400px] h-[450px] md:h-[500px] bg-gradient-to-br from-primary-light to-gold-light rounded-3xl overflow-hidden shadow-2xl relative">
+                <img 
+                  src="/dry.jpg" 
+                  alt="Quality Dry Fruits" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
               </div>
               
               {/* Badge */}
-              <div className="absolute -bottom-4 -right-4 bg-white rounded-2xl p-4 shadow-xl border border-border">
+              <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl p-4 shadow-2xl border border-border/50 backdrop-blur-sm z-10 animate-float">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
                     <Shield className="w-6 h-6 text-success" />
                   </div>
                   <div>
                     <p className="font-bold text-text-dark">Verified</p>
-                    <p className="text-sm text-text-gray">Quality Products</p>
+                    <p className="text-sm text-text-gray font-medium">Quality Products</p>
                   </div>
                 </div>
               </div>
+
+              {/* Decorative Background Elements */}
+              <div className="absolute -top-4 -left-4 w-20 h-20 bg-primary/10 rounded-full blur-2xl -z-10 animate-pulse-slow" />
+              <div className="absolute bottom-1/2 -left-8 w-14 h-14 bg-accent-gold/10 rounded-full blur-xl -z-10" />
             </div>
           </div>
         </div>

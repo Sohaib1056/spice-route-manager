@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, Menu, X, Phone } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
@@ -9,13 +9,66 @@ export default function Navbar({ onSearch }) {
   const [searchQuery, setSearchQuery] = useState('');
   const { totalItems } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Handle cross-page scrolling
+  useEffect(() => {
+    if (location.pathname === '/' && location.hash) {
+      const id = location.hash.replace('#', '');
+      setTimeout(() => {
+        const element = document.getElementById(id);
+        if (element) {
+          const offset = 80;
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - offset;
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    }
+  }, [location]);
 
   const navLinks = [
-    { name: 'Home', href: '/', isRoute: true },
+    { name: 'Home', href: 'home', isRoute: false },
     { name: 'Products', href: '/products', isRoute: true },
-    { name: 'About', href: '#about', isRoute: false },
-    { name: 'Contact', href: '#contact', isRoute: false },
+    { name: 'About', href: 'about', isRoute: false },
+    { name: 'Contact', href: 'contact', isRoute: false },
   ];
+
+  const handleNavClick = (e, href, isRoute) => {
+    if (isRoute) return;
+    
+    e.preventDefault();
+    setIsMenuOpen(false);
+
+    if (location.pathname !== '/') {
+      navigate('/' + (href === 'home' ? '' : '#' + href));
+      return;
+    }
+
+    if (href === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Remove hash if present
+      if (window.location.hash) {
+        navigate('/', { replace: true });
+      }
+    } else {
+      const element = document.getElementById(href);
+      if (element) {
+        const offset = 80; // Navbar height offset
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
+        // Update hash without jump
+        navigate('/#' + href, { replace: true });
+      }
+    }
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -37,7 +90,6 @@ export default function Navbar({ onSearch }) {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               link.isRoute ? (
@@ -52,7 +104,8 @@ export default function Navbar({ onSearch }) {
               ) : (
                 <a
                   key={link.name}
-                  href={link.href}
+                  href={`#${link.href}`}
+                  onClick={(e) => handleNavClick(e, link.href, link.isRoute)}
                   className="text-text-dark hover:text-primary transition-colors duration-200 font-medium relative group"
                 >
                   {link.name}
@@ -164,8 +217,8 @@ export default function Navbar({ onSearch }) {
                 ) : (
                   <a
                     key={link.name}
-                    href={link.href}
-                    onClick={() => setIsMenuOpen(false)}
+                    href={`#${link.href}`}
+                    onClick={(e) => handleNavClick(e, link.href, link.isRoute)}
                     className="px-4 py-3 text-text-dark hover:text-primary hover:bg-primary-light rounded-xl transition-all duration-200 font-medium"
                   >
                     {link.name}
