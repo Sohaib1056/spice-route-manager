@@ -22,10 +22,6 @@ export default function HomePage() {
     navigate('/products');
   };
 
-  const handleOrderNow = () => {
-    navigate('/products');
-  };
-
   return (
     <>
       <Hero />
@@ -42,21 +38,13 @@ export default function HomePage() {
                 Humare best selling aur premium quality products
               </p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleOrderNow}
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-deep transition-colors shadow-lg shadow-primary/20"
-              >
-                Order Now
-              </button>
-              <button
-                onClick={handleViewAllProducts}
-                className="flex items-center gap-2 px-6 py-3 bg-brown-600 text-white rounded-lg font-semibold hover:bg-brown-700 transition-colors"
-              >
-                View All Products
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
+            <button
+              onClick={handleViewAllProducts}
+              className="hidden md:flex items-center gap-2 px-6 py-3 bg-brown-600 text-white rounded-lg font-semibold hover:bg-brown-700 transition-colors"
+            >
+              Explore More
+              <ArrowRight className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -69,13 +57,13 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* View All Button for Mobile */}
-          <div className="mt-8 text-center lg:hidden">
+          {/* View More Button for all screens */}
+          <div className="mt-12 text-center">
             <button
               onClick={handleViewAllProducts}
-              className="inline-flex items-center gap-2 px-8 py-3 bg-brown-600 text-white rounded-lg font-semibold hover:bg-brown-700 transition-colors"
+              className="inline-flex items-center gap-3 px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm hover:bg-primary transition-all duration-300 shadow-xl shadow-slate-200"
             >
-              View All Products
+              Explore More Products
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>

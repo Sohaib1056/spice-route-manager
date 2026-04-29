@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Truck, Shield, Award, Clock } from 'lucide-react';
 
 export default function AboutSection() {
@@ -73,12 +74,12 @@ export default function AboutSection() {
             </div>
 
             <div className="mt-8 flex flex-wrap gap-4">
-              <a
-                href="#products"
+              <Link
+                to="/products"
                 className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-deep transition-colors duration-200"
               >
                 Products Dekhein
-              </a>
+              </Link>
               <a
                 href="https://wa.me/923211234567"
                 target="_blank"
