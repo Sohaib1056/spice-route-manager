@@ -2,7 +2,9 @@ import { useMemo, useState, useEffect } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Plus, Trash2, Eye, Pencil, CheckCircle2, Upload, FileText, X } from "lucide-react";
+import { Plus, Trash2, Eye, Pencil, CheckCircle2, Upload, FileText, X, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatCard } from "@/components/StatCard";
 import { Modal } from "@/components/Modal";
@@ -16,7 +18,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 
 interface ReceiveData {
   receivedDate: string;
-  supplierBill?: { name: string; url: string; size: number };
+  supplierBill?: File;
   notes?: string;
 }
 
@@ -217,7 +219,7 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
 function ReceiveOrderModal({ open, purchase, onClose, onReceive }: { open: boolean; purchase: Purchase | null; onClose: () => void; onReceive: (id: string, data: ReceiveData) => void }) {
   const [receivedDate, setReceivedDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
-  const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string; size: number } | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -231,9 +233,8 @@ function ReceiveOrderModal({ open, purchase, onClose, onReceive }: { open: boole
         toast.error("Only JPG, PNG, and PDF files are allowed");
         return;
       }
-      const url = URL.createObjectURL(file);
-      setUploadedFile({ name: file.name, url: url, size: file.size });
-      toast.success("Bill uploaded successfully!");
+      setUploadedFile(file);
+      toast.success("Bill selected successfully!");
     }
   };
 
@@ -333,18 +334,50 @@ export default function PurchasePage() {
   const [confirmState, setConfirmState] = useState<{ open: boolean; id: string; poNumber: string }>({ open: false, id: "", poNumber: "" });
 
   useEffect(() => {
+    const refreshData = async () => {
+      try {
+        await store.init();
+        setList(store.getPurchases());
+        setProducts(store.getProducts());
+        setSuppliers(store.getSuppliers());
+      } catch (error) {
+        console.error("Failed to refresh purchase data:", error);
+      }
+    };
+
+    // Refresh when tab changes or component mounts
+    refreshData();
+
+    // Set up an interval to refresh data every 30 seconds to keep payment status in sync
+    const interval = setInterval(refreshData, 30000);
+    return () => clearInterval(interval);
+  }, [tab]);
+
+  useEffect(() => {
     const productId = searchParams.get('product');
     if (productId && products.length > 0) {
       setShowForm(true);
     }
   }, [searchParams, products]);
 
-  const stats = useMemo(() => ({
-    month: list.reduce((s, p) => s + p.total, 0),
-    pending: list.filter((p) => p.status === "Sent").length,
-    paid: list.filter((p) => p.paymentStatus === "Paid").reduce((s, p) => s + p.total, 0),
-    duePayments: list.filter((p) => p.paymentStatus !== "Paid").reduce((s, p) => s + p.total, 0),
-  }), [list]);
+  const stats = useMemo(() => {
+    // Current month filter
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const monthlyList = list.filter(p => {
+      const d = new Date(p.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    return {
+      month: monthlyList.reduce((s, p) => s + p.total, 0),
+      pending: list.filter((p) => p.status === "Sent").length,
+      paid: list.filter((p) => p.paymentStatus === "Paid").reduce((s, p) => s + p.total, 0),
+      duePayments: list.filter((p) => p.paymentStatus !== "Paid").reduce((s, p) => s + p.total, 0),
+    };
+  }, [list]);
 
   const handleSave = async (po: Omit<Purchase, "id">) => {
     try {
@@ -366,15 +399,95 @@ export default function PurchasePage() {
   };
 
   const handleReceive = async (id: string, data: ReceiveData) => {
+    const loadingToast = toast.loading("Confirming receipt and updating inventory...");
     try {
       await store.receivePurchase(id, data);
+      
+      // Strict re-initialization to ensure inventory and purchase lists are sync'd
+      await store.init(); 
+      
+      // Update all relevant states to ensure UI reflects new stock
       setList(store.getPurchases());
       setProducts(store.getProducts());
+      setSuppliers(store.getSuppliers());
+      
       setReceiveModal(null);
-      toast.success("Order received successfully!");
-    } catch (error) {
-      toast.error("Failed to receive order");
+      toast.success("Order received and inventory updated successfully!", { id: loadingToast, duration: 4000 });
+      
+      // Optional: Redirect to inventory if needed, but here we stay to see the updated PO list
+    } catch (error: any) {
+      console.error("[PurchasePage] Receive error details:", error);
+      let errorMsg = "Failed to receive order. Please try again.";
+      
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (data.message === "Validation Error" && data.details) {
+          const fields = Object.keys(data.details).join(", ");
+          errorMsg = `Validation failed for: ${fields}. Please check order data.`;
+        } else {
+          errorMsg = data.message || errorMsg;
+        }
+      }
+      
+      toast.error(errorMsg, { id: loadingToast, duration: 6000 });
     }
+  };
+
+  const handleDownload = (p: Purchase) => {
+    const doc = new jsPDF();
+    const primaryColor = [180, 83, 9]; // amber-brand
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("PURCHASE ORDER", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`PO Number: ${p.po}`, 14, 28);
+    doc.text(`Date: ${formatDate(p.date)}`, 14, 33);
+    doc.text(`Status: ${p.status}`, 14, 38);
+    
+    // Supplier Info
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text("SUPPLIER:", 14, 50);
+    doc.setFontSize(11);
+    doc.text(p.supplierName, 14, 56);
+    
+    // Items Table
+    autoTable(doc, {
+      startY: 65,
+      head: [["Item", "Quantity", "Price", "Total"]],
+      body: p.items.map(it => [
+        it.name,
+        `${it.qty} ${it.unit || "pcs"}`,
+        formatPKR(it.price),
+        formatPKR(it.qty * it.price)
+      ]),
+      headStyles: { fillStyle: "f3", fillColor: primaryColor },
+      alternateRowStyles: { fillColor: [252, 251, 247] }, // cream/40
+    });
+    
+    // Totals
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(10);
+    doc.text(`Subtotal: ${formatPKR(p.subtotal)}`, 140, finalY);
+    doc.text(`Discount: -${formatPKR(p.discount)}`, 140, finalY + 5);
+    doc.text(`Tax: ${formatPKR(p.tax)}`, 140, finalY + 10);
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Grand Total: ${formatPKR(p.total)}`, 140, finalY + 18);
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(150);
+    doc.text("Spice Route Manager - Generated on " + new Date().toLocaleString(), 14, doc.internal.pageSize.height - 10);
+    
+    doc.save(`${p.po}.pdf`);
+    toast.success("Purchase order downloaded");
   };
 
   const doDelete = async (id: string) => {
@@ -420,10 +533,11 @@ export default function PurchasePage() {
                 <th className="text-left font-medium px-4 py-3">{tab === "po" ? "PO#" : "GRN#"}</th>
                 <th className="text-left font-medium px-4 py-3">Date</th>
                 <th className="text-left font-medium px-4 py-3">Supplier</th>
-                <th className="text-right font-medium px-4 py-3">Items</th>
+                <th className="text-center font-medium px-4 py-3">Items</th>
                 <th className="text-right font-medium px-4 py-3">Total</th>
                 <th className="text-left font-medium px-4 py-3">Status</th>
                 <th className="text-left font-medium px-4 py-3">Payment</th>
+                {tab === "grn" && <th className="text-center font-medium px-4 py-3">Receipt</th>}
                 <th className="text-right font-medium px-4 py-3">Actions</th>
               </tr>
             </thead>
@@ -432,14 +546,30 @@ export default function PurchasePage() {
                 <tr key={p.id} className="border-t border-border hover:bg-cream/40">
                   <td className="px-4 py-3 font-medium text-walnut">{tab === "po" ? p.po : p.po.replace("PO", "GRN")}</td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDate(p.date)}</td>
-                  <td className="px-4 py-3">{p.supplierName}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{p.items.length}</td>
+                  <td className="px-4 py-3 font-medium">{p.supplierName}</td>
+                  <td className="px-4 py-3 text-center tabular-nums">{p.items.length}</td>
                   <td className="px-4 py-3 text-right font-medium text-walnut">{formatPKR(p.total)}</td>
                   <td className="px-4 py-3"><StatusPill type="purchase" status={p.status} /></td>
                   <td className="px-4 py-3"><StatusPill type="payment" status={p.paymentStatus} /></td>
+                  {tab === "grn" && (
+                    <td className="px-4 py-3 text-center">
+                      {p.supplierBill ? (
+                        <button 
+                          onClick={() => p.supplierBill?.url && window.open(p.supplierBill.url, '_blank')}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-brand/10 text-amber-brand hover:bg-amber-brand/20 transition-colors"
+                          title="View Receipt"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <span className="text-muted-foreground/30">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => setView(p)} className="rounded-md p-1.5 text-info hover:bg-info/10" aria-label="View"><Eye className="h-4 w-4" /></button>
+                      <button onClick={() => handleDownload(p)} className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10" aria-label="Download"><Download className="h-4 w-4" /></button>
                       {p.status !== "Received" && <button onClick={() => setReceiveModal(p)} className="rounded-md p-1.5 text-success hover:bg-success/10" aria-label="Receive"><CheckCircle2 className="h-4 w-4" /></button>}
                       {p.status !== "Received" && <button onClick={() => setEditingPurchase(p)} className="rounded-md p-1.5 text-amber-brand hover:bg-amber-brand/10" aria-label="Edit"><Pencil className="h-4 w-4" /></button>}
                       <button onClick={() => setConfirmState({ open: true, id: p.id, poNumber: p.po })} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>

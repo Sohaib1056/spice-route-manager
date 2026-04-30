@@ -126,29 +126,43 @@ export const recordPayment = async (req: Request, res: Response) => {
     await supplier.save();
 
     // Update purchase orders payment status
-    // Get all purchases for this supplier
+    // Get all purchases for this supplier that are not fully paid
     const purchases = await Purchase.find({ 
       supplierId: supplier._id,
-      paymentStatus: { $ne: "Paid" } // Only unpaid or partial purchases
+      paymentStatus: { $ne: "Paid" }
     }).sort({ date: 1 }); // Oldest first
 
-    // Calculate how much to allocate to each purchase
     let remainingPayment = amount;
     const updatedPurchases = [];
 
     for (const purchase of purchases) {
       if (remainingPayment <= 0) break;
 
-      // Calculate how much is owed for this purchase
-      const purchaseOwed = purchase.total;
+      // Use a more robust way to calculate total paid for this specific PO
+      const poPayments = await FinanceTransaction.find({
+        supplierId: supplier._id,
+        category: "Supplier Payment",
+        $or: [
+          { notes: { $regex: new RegExp(purchase.po, "i") } },
+          { description: { $regex: new RegExp(purchase.po, "i") } }
+        ]
+      });
       
-      if (remainingPayment >= purchaseOwed) {
-        // Full payment for this purchase
+      const alreadyPaidForThisPO = poPayments.reduce((sum, p) => sum + p.amount, 0);
+      const remainingDueForThisPO = Math.max(0, purchase.total - alreadyPaidForThisPO);
+
+      if (remainingDueForThisPO <= 0) {
         purchase.paymentStatus = "Paid";
-        remainingPayment -= purchaseOwed;
+        await purchase.save();
         updatedPurchases.push(purchase.po);
-      } else {
-        // Partial payment
+        continue;
+      }
+      
+      if (remainingPayment >= remainingDueForThisPO) {
+        purchase.paymentStatus = "Paid";
+        remainingPayment -= remainingDueForThisPO;
+        updatedPurchases.push(purchase.po);
+      } else if (remainingPayment > 0) {
         purchase.paymentStatus = "Partial";
         remainingPayment = 0;
       }
@@ -166,13 +180,13 @@ export const recordPayment = async (req: Request, res: Response) => {
       type: "Expense",
       category: "Supplier Payment",
       amount: amount,
-      description: `Payment to ${supplier.name}${note ? ` - ${note}` : ""}`,
+      description: `Payment to ${supplier.name}${updatedPurchases.length > 0 ? ` (PO: ${updatedPurchases.join(", ")})` : ""}${note ? ` - ${note}` : ""}`,
       date: paymentDate,
       method: method || "Cash",
       paymentMethod: method || "Cash",
       reference: `Supplier: ${supplier.name}`,
       supplierId: supplier._id,
-      notes: note || "",
+      notes: `${note ? `${note} ` : ""}${updatedPurchases.length > 0 ? `Applied to: ${updatedPurchases.join(", ")}` : ""}`,
       addedBy: userName || "System",
     });
 

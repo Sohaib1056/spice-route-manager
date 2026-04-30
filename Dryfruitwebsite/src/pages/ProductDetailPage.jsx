@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { products } from '../data/products';
+import { productStats, BASE_URL } from '../services/api';
 import { 
   ShoppingCart, 
   Heart, 
@@ -24,44 +24,151 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { addItem } = useCart();
   
-  const product = products.find(p => p.id === parseInt(id));
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [selectedWeight, setSelectedWeight] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
 
-  useEffect(() => {
-    if (product && product.weightOptions.length > 0) {
-      setSelectedWeight(product.weightOptions[0]);
+  // Robust parsing of weight options - MOVED ABOVE conditional return
+  const weightOptions = useMemo(() => {
+    if (!product || !product.weightOptions) return [];
+    if (Array.isArray(product.weightOptions)) {
+      if (product.weightOptions.length === 1 && typeof product.weightOptions[0] === 'string' && product.weightOptions[0].includes(',')) {
+        return product.weightOptions[0].split(',').map(w => w.trim()).filter(Boolean);
+      }
+      return product.weightOptions.filter(Boolean);
     }
-    // Scroll to top on mount
-    window.scrollTo(0, 0);
-  }, [product]);
+    if (typeof product.weightOptions === 'string') {
+      return product.weightOptions.split(',').map(w => w.trim()).filter(Boolean);
+    }
+    return [];
+  }, [product?.weightOptions]);
 
-  if (!product) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    fetchProductDetails();
+  }, [id]);
+
+  const fetchProductDetails = async () => {
+    try {
+      setLoading(true);
+      const allProducts = await productStats.getAll();
+      const foundProduct = allProducts.find(p => (p.id?.toString() === id || p._id === id));
+      
+      if (foundProduct) {
+        setProduct(foundProduct);
+        
+        // Initial weight selection logic
+        let initialWeights = [];
+        if (foundProduct.weightOptions) {
+          if (Array.isArray(foundProduct.weightOptions)) {
+            if (foundProduct.weightOptions.length === 1 && typeof foundProduct.weightOptions[0] === 'string' && foundProduct.weightOptions[0].includes(',')) {
+              initialWeights = foundProduct.weightOptions[0].split(',').map(w => w.trim()).filter(Boolean);
+            } else {
+              initialWeights = foundProduct.weightOptions.filter(Boolean);
+            }
+          } else if (typeof foundProduct.weightOptions === 'string') {
+            initialWeights = foundProduct.weightOptions.split(',').map(w => w.trim()).filter(Boolean);
+          }
+        }
+
+        if (initialWeights.length > 0) {
+          setSelectedWeight(initialWeights[0]);
+        }
+        
+        // Fetch related products
+        const related = allProducts
+          .filter(p => p.category === foundProduct.category && (p.id?.toString() !== id && p._id !== id))
+          .slice(0, 4);
+        setRelatedProducts(related);
+      }
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (weightOptions.length > 0 && !selectedWeight) {
+      setSelectedWeight(weightOptions[0]);
+    }
+  }, [weightOptions, selectedWeight]);
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-black text-slate-900 mb-4 uppercase tracking-tight">Product not found</h2>
-          <button
-            onClick={() => navigate('/products')}
-            className="text-primary font-black uppercase tracking-widest text-sm hover:underline"
-          >
-            Back to products
-          </button>
-        </div>
+      <div className="min-h-screen bg-slate-100/80 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  const currentPrice = product.pricePerWeight?.[selectedWeight] || 0;
-  const originalPrice = product.originalPrice?.[selectedWeight] || 0;
-  const discount = originalPrice > 0 ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) : 0;
+  const isDiscountEligible = (weight) => {
+    return product && product.discountPercentage > 0;
+  };
+
+  const calculatePriceForWeight = (weight, basePricePerKg) => {
+    if (!weight) return basePricePerKg;
+    const w = weight.toLowerCase();
+    let multiplier = 1;
+    
+    if (w.includes('250g') || w.includes('250 g')) multiplier = 0.25;
+    else if (w.includes('500g') || w.includes('500 g')) multiplier = 0.5;
+    else if (w.includes('750g') || w.includes('750 g')) multiplier = 0.75;
+    else if (w.includes('1kg') || w.includes('1000g') || w.includes('1 kg')) multiplier = 1;
+    
+    return Math.round(basePricePerKg * multiplier);
+  };
+
+  const basePrice = product?.sellPrice || 0;
+  const hasDiscount = product?.discountPercentage > 0;
+  
+  // Calculate the original (before discount) base price
+  const originalBasePrice = hasDiscount 
+    ? Math.round(basePrice / (1 - product.discountPercentage / 100))
+    : basePrice;
+
+  const currentPrice = calculatePriceForWeight(selectedWeight, basePrice);
+  const originalPriceCalculated = hasDiscount 
+    ? Math.round(currentPrice / (1 - product.discountPercentage / 100))
+    : currentPrice;
+
+  // Dynamic Total Price
+  const totalPrice = currentPrice * quantity;
+  const totalOriginalPrice = originalPriceCalculated * quantity;
+
+  // Stock Validation for Buttons
+  const weightInKgPerUnit = currentPrice / basePrice;
+  const maxQuantityAllowed = Math.floor(product.stock / weightInKgPerUnit);
 
   const handleAddToCart = () => {
-    if (product.stock === 0) return;
+    if (product.stock <= 0) {
+      toast.error("Stock khatam ho gaya hai!");
+      return;
+    }
     
-    addItem(product, selectedWeight, quantity);
+    // Calculate weight in KG for this selection
+    const weightInKg = currentPrice / basePrice;
+    const totalWeightRequested = weightInKg * quantity;
+
+    if (totalWeightRequested > product.stock) {
+      toast.error(`Maazrat! Sirf ${product.stock}kg stock bacha hai.`);
+      return;
+    }
+    
+    // Create a copy of product with the calculated price for the cart
+    const productWithCalculatedPrice = {
+      ...product,
+      pricePerWeight: {
+        ...product.pricePerWeight,
+        [selectedWeight]: currentPrice
+      }
+    };
+    
+    addItem(productWithCalculatedPrice, selectedWeight, quantity);
     setIsAdded(true);
     
     toast.custom((t) => (
@@ -85,10 +192,6 @@ export default function ProductDetailPage() {
     setTimeout(() => setIsAdded(false), 2500);
   };
 
-  const relatedProducts = products
-    .filter(p => p.category === product.category && p.id !== product.id)
-    .slice(0, 4);
-
   return (
     <div className="min-h-screen bg-slate-100/80 py-6 md:py-10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -104,22 +207,33 @@ export default function ProductDetailPage() {
         {/* Main Product Container - More Compact */}
         <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-300/40 overflow-hidden border border-slate-200 mb-8">
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            {/* Left: Visual Section - Reduced Padding */}
-            <div className="relative flex items-center justify-center bg-slate-100/30 p-8 lg:p-12 overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-200">
-              <div className="absolute top-0 left-0 w-64 h-64 bg-primary/5 rounded-full -ml-32 -mt-32 blur-[80px]" />
-              
-              <div className="relative z-10 text-center transform transition-all duration-700 hover:scale-105">
+            <div className="relative flex items-center justify-center bg-slate-100/30 overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-200 min-h-[400px]">
+              {product.image ? (
+                <img 
+                  src={product.image.startsWith('http') ? product.image : `${BASE_URL}${product.image}`} 
+                  alt={product.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
                 <div className="text-[8rem] md:text-[10rem] drop-shadow-xl filter saturate-[1.1]">
                   {product.emoji}
                 </div>
-                {product.badge && (
-                  <div className="mt-6">
-                    <span className="inline-block px-5 py-1.5 bg-slate-900 text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-full">
-                      {product.badge}
-                    </span>
-                  </div>
-                )}
-              </div>
+              )}
+
+              {product.badge && (
+                <div className="absolute top-4 right-4">
+                  <span className="inline-block px-5 py-1.5 bg-slate-900/80 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-full">
+                    {product.badge}
+                  </span>
+                </div>
+              )}
+              {hasDiscount && (
+                <div className="absolute top-4 left-4">
+                  <span className="inline-block px-5 py-1.5 bg-red-600/90 backdrop-blur-sm text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-full shadow-lg animate-pulse">
+                    {product.discountPercentage}% OFF
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Right: Info Section - Optimized Spacing */}
@@ -148,17 +262,26 @@ export default function ProductDetailPage() {
               {/* Price & Offers - Slimmer */}
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-6">
                 <div className="flex items-center gap-4">
-                  <span className="text-3xl font-black text-slate-900 tracking-tight">
-                    Rs. {(currentPrice || 0).toLocaleString()}
-                  </span>
                   <div className="flex flex-col">
-                    <span className="text-base text-slate-300 line-through font-bold">
-                      Rs. {(originalPrice || 0).toLocaleString()}
+                    {hasDiscount && (
+                      <span className="text-sm text-slate-400 line-through font-bold">
+                        Rs. {totalOriginalPrice.toLocaleString()}
+                      </span>
+                    )}
+                    <span className="text-3xl font-black text-slate-900 tracking-tight">
+                      Rs. {totalPrice.toLocaleString()}
                     </span>
+                    {quantity > 1 && (
+                      <span className="text-[10px] text-slate-400 font-bold uppercase mt-1">
+                        (Rs. {currentPrice.toLocaleString()} per {selectedWeight})
+                      </span>
+                    )}
                   </div>
-                  <div className="ml-auto px-3 py-1 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md">
-                    {discount}% OFF
-                  </div>
+                  {hasDiscount && (
+                    <div className="ml-auto px-3 py-1 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md">
+                      {product.discountPercentage}% OFF
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -202,15 +325,15 @@ export default function ProductDetailPage() {
                         {quantity}
                       </span>
                       <button
-                        onClick={() => quantity < product.stock && setQuantity(quantity + 1)}
+                        onClick={() => quantity < maxQuantityAllowed && setQuantity(quantity + 1)}
                         className="p-2.5 text-slate-500 hover:text-slate-900 disabled:opacity-30 transition-all hover:bg-white rounded-lg"
-                        disabled={quantity >= product.stock}
+                        disabled={quantity >= maxQuantityAllowed}
                       >
                         <Plus className="w-4 h-4 stroke-[3px]" />
                       </button>
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      {product.stock} units left
+                      {product.stock} kg in stock
                     </p>
                   </div>
                 </div>
@@ -315,7 +438,7 @@ export default function ProductDetailPage() {
             
             <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10">
               <p className="text-[10px] text-white/60 font-medium leading-relaxed">
-                Free delivery on orders over <span className="text-amber-400 font-black">Rs. 2,000</span>.
+                Free delivery on orders over <span className="text-amber-400 font-black">Rs. 5,000</span>.
               </p>
             </div>
           </div>
@@ -338,19 +461,31 @@ export default function ProductDetailPage() {
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {relatedProducts.map((rp) => (
-                <div
-                  key={rp.id}
-                  onClick={() => navigate(`/product/${rp.id}`)}
-                  className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group text-center"
-                >
-                  <div className="text-6xl mb-4 transform transition-transform group-hover:scale-110">{rp.emoji}</div>
-                  <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-primary transition-colors">{rp.name}</h4>
-                  <div className="mt-2 text-xs font-black text-slate-400">
-                    Rs. {rp.pricePerWeight[rp.weightOptions[0]].toLocaleString()}
-                  </div>
-                </div>
-              ))}
+                  {relatedProducts.map((rp) => (
+                    <div
+                      key={rp.id || rp._id}
+                      onClick={() => navigate(`/product/${rp.id || rp._id}`)}
+                      className="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col overflow-hidden"
+                    >
+                      <div className="h-40 bg-slate-50 flex items-center justify-center overflow-hidden">
+                        {rp.image ? (
+                          <img 
+                            src={rp.image.startsWith('http') ? rp.image : `${BASE_URL}${rp.image}`} 
+                            alt={rp.name} 
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                          />
+                        ) : (
+                          <div className="text-6xl transform transition-transform group-hover:scale-110">{rp.emoji || '🥜'}</div>
+                        )}
+                      </div>
+                      <div className="p-4 text-center">
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-primary transition-colors">{rp.name}</h4>
+                        <div className="mt-2 text-xs font-black text-slate-400">
+                          Rs. {(rp.pricePerWeight?.[rp.weightOptions?.[0]] || rp.sellPrice || 0).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
             </div>
           </div>
         )}

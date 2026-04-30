@@ -784,13 +784,20 @@ export default function SalesPage() {
   const [products, setProducts] = useState<Product[]>(store.getProducts());
 
   const handleComplete = async (s: Omit<Sale, "id">) => {
+    const loadingToast = toast.loading("Processing sale and updating stock...");
     try {
       await store.addSale(s);
+      
+      // Strict re-initialization to ensure inventory and sales lists are sync'd
+      await store.init();
+      
       setList(store.getSales());
       setProducts(store.getProducts());
-      toast.success(`Sale completed • ${s.invoice}`);
+      
+      toast.success(`Sale completed • ${s.invoice}`, { id: loadingToast });
     } catch (error) {
-      toast.error("Failed to complete sale");
+      console.error("[SalesPage] Sale completion error:", error);
+      toast.error("Failed to complete sale", { id: loadingToast });
     }
   };
 

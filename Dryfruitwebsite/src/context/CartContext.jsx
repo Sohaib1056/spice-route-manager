@@ -12,18 +12,18 @@ function cartReducer(state, action) {
   switch (action.type) {
     case 'ADD_ITEM': {
       const existingIndex = state.items.findIndex(
-        item => item.id === action.payload.id && item.weight === action.payload.weight
+        item => (item.id === action.payload.id || item._id === action.payload.id) && item.weight === action.payload.weight
       );
 
       let newItems;
       if (existingIndex > -1) {
         newItems = state.items.map((item, index) =>
           index === existingIndex
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + (action.payload.quantity || 1) }
             : item
         );
       } else {
-        newItems = [...state.items, { ...action.payload, quantity: 1 }];
+        newItems = [...state.items, { ...action.payload }];
       }
 
       return calculateTotals({ ...state, items: newItems });
@@ -31,14 +31,14 @@ function cartReducer(state, action) {
 
     case 'REMOVE_ITEM': {
       const newItems = state.items.filter(
-        item => !(item.id === action.payload.id && item.weight === action.payload.weight)
+        item => !((item.id === action.payload.id || item._id === action.payload.id) && (item.selectedWeight === action.payload.weight || item.weight === action.payload.weight))
       );
       return calculateTotals({ ...state, items: newItems });
     }
 
     case 'UPDATE_QUANTITY': {
       const newItems = state.items.map(item =>
-        item.id === action.payload.id && item.weight === action.payload.weight
+        (item.id === action.payload.id || item._id === action.payload.id) && (item.selectedWeight === action.payload.weight || item.weight === action.payload.weight)
           ? { ...item, quantity: Math.max(1, action.payload.quantity) }
           : item
       );
@@ -86,16 +86,25 @@ export function CartProvider({ children }) {
     localStorage.setItem('dryfruitpro-cart', JSON.stringify(state));
   }, [state]);
 
-  const addItem = (product, weight) => {
+  const addItem = (product, weight, quantity = 1) => {
+    // Safety check for product and price
+    if (!product) return;
+
+    const price = product.pricePerWeight?.[weight] || product.sellPrice || 0;
+    
     dispatch({
       type: 'ADD_ITEM',
       payload: {
-        id: product.id,
+        id: product.id || product._id,
+        _id: product._id, // Store MongoDB ID separately
         name: product.name,
+        nameUrdu: product.nameUrdu,
         weight,
-        price: product.pricePerWeight[weight],
+        selectedWeight: weight, // Ensure selectedWeight is stored
+        price,
         image: product.image,
         emoji: product.emoji || '🥜',
+        quantity,
       },
     });
   };

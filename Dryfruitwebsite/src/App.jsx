@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +28,7 @@ function App() {
               <Route path="/products" element={<ProductsPage searchQuery={searchQuery} />} />
               <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
             </Routes>
           </main>
           

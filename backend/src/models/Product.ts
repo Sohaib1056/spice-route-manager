@@ -2,28 +2,52 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IProduct extends Document {
   name: string;
+  nameUrdu?: string;
   sku: string;
   category: string;
-  unit: "kg" | "g" | "pack";
+  emoji?: string;
   buyPrice: number;
   sellPrice: number;
+  pricePerWeight: Record<string, number>;
+  originalPrice: Record<string, number>;
+  weightOptions: string[];
   stock: number;
   minStock: number;
   active: boolean;
   description?: string;
+  rating?: number;
+  reviewCount?: number;
+  badge?: string;
+  origin?: string;
+  storageInfo?: string;
+  shelfLife?: string;
+  image?: string;
+  discountPercentage?: number;
 }
 
 const ProductSchema: Schema = new Schema({
   name: { type: String, required: true },
+  nameUrdu: { type: String },
   sku: { type: String, required: true, unique: true },
   category: { type: String, required: true },
-  unit: { type: String, enum: ["kg", "g", "pack"], default: "kg" },
+  emoji: { type: String, default: "🥜" },
   buyPrice: { type: Number, required: true },
   sellPrice: { type: Number, required: true },
+  pricePerWeight: { type: Map, of: Number, required: true },
+  originalPrice: { type: Map, of: Number, required: true },
+  weightOptions: [{ type: String, required: true }],
   stock: { type: Number, default: 0 },
   minStock: { type: Number, default: 10 },
   active: { type: Boolean, default: true },
   description: { type: String },
+  rating: { type: Number, default: 5.0 },
+  reviewCount: { type: Number, default: 0 },
+  badge: { type: String },
+  origin: { type: String },
+  storageInfo: { type: String },
+  shelfLife: { type: String },
+  image: { type: String },
+  discountPercentage: { type: Number, default: 0 },
 }, { timestamps: true });
 
 export default mongoose.model<IProduct>("Product", ProductSchema);

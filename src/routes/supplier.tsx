@@ -195,16 +195,22 @@ export default function SupplierPage() {
       });
       
       if (response.success) {
-        // Fetch fresh supplier data directly from API
+        // Fetch fresh supplier data and purchases directly from API
         try {
           const [suppRes, purRes] = await Promise.all([
             axios.get(`${APIU}/suppliers`),
             axios.get(`${APIU}/purchases`),
           ]);
           const freshList = suppRes.data.map(norm);
+          const freshPurchases = purRes.data.map(norm);
+          
           setList(freshList);
-          setPurchases(purRes.data.map(norm));
-
+          setPurchases(freshPurchases);
+          
+          // Also update the global store's local state if necessary
+          // Note: store.getPurchases() might still return old data if not updated
+          // We'll update the component state which is what the UI uses
+          
           // Update ledger with fresh data
           const ledgerResponse = await api.getSupplierLedger(paying.id);
           if (ledgerResponse.success) {
@@ -212,11 +218,11 @@ export default function SupplierPage() {
             const updatedSupplier = freshList.find((s: Supplier) => s.id === paying.id);
             if (updatedSupplier) setLedger(updatedSupplier);
           }
-        } catch {
-          // Silent fallback
+        } catch (error) {
+          console.error("Error refreshing data after payment:", error);
         }
         
-        toast.success("Payment recorded successfully");
+        toast.success("Payment recorded successfully and purchase orders updated");
         setPaying(null);
       } else {
         toast.error(response.message || "Failed to record payment");

@@ -17,6 +17,7 @@ import UsersPage from "./routes/users";
 import PermissionsPage from "./routes/permissions";
 import NotificationsPage from "./routes/notifications";
 import LowStockPage from "./routes/low-stock";
+import WebsiteOrdersPage from "./routes/website-orders";
 
 export function App() {
   return (
@@ -160,6 +161,16 @@ export function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <LowStockPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/website-orders"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <WebsiteOrdersPage />
                 </AppLayout>
               </ProtectedRoute>
             }

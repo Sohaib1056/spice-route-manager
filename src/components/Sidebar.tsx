@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Package, Boxes, ShoppingCart, Receipt, Truck,
-  TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, Shield, Bell, AlertTriangle,
+  TrendingUp, BarChart3, Users as UsersIcon, Settings as SettingsIcon, Shield, Bell, AlertTriangle, Globe,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,12 @@ const groups: { label: string; items: NavItem[] }[] = [
       { to: "/purchase", label: "Purchase", icon: ShoppingCart, permissionKey: "purchase" },
       { to: "/sales", label: "Sales / POS", icon: Receipt, permissionKey: "sales" },
       { to: "/supplier", label: "Suppliers", icon: Truck, permissionKey: "supplier" },
+    ],
+  },
+  {
+    label: "E-Commerce",
+    items: [
+      { to: "/website-orders", label: "Website Orders", icon: Globe, permissionKey: "sales" },
     ],
   },
   {

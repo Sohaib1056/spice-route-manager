@@ -15,6 +15,7 @@ const titles: Record<string, string> = {
   "/users": "User Management",
   "/settings": "Settings",
   "/login": "Login",
+  "/website-orders": "Website Orders",
 };
 
 export function AppLayout({ children }: { children: ReactNode }) {

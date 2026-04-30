@@ -17,13 +17,51 @@ import User from "../models/User";
 
 export const createSale = async (req: Request, res: Response) => {
   try {
-    const sale = new Sale(req.body);
+    const saleData = req.body;
+    
+    // 1. Create and Save Sale FIRST
+    const sale = new Sale(saleData);
     await sale.save();
 
-    // Create audit log
-    if (req.body.currentUserId) {
+    // 2. Update stock levels and create movements (Atomic per item)
+    for (const item of sale.items) {
+      try {
+        // Use findOneAndUpdate with $inc (negative) for atomic database-level deduction
+        const updatedProduct = await Product.findOneAndUpdate(
+          { _id: item.productId },
+          { $inc: { stock: -(Number(item.qty) || 0) } },
+          { new: true }
+        );
+
+        if (updatedProduct) {
+          const newStock = updatedProduct.stock;
+          const prevStock = newStock + (Number(item.qty) || 0);
+          
+          console.log(`[CreateSale] Atomic Stock Update for ${updatedProduct.name}: ${prevStock} -> ${newStock}`);
+
+          await StockMovement.create({
+            productId: updatedProduct._id,
+            productName: updatedProduct.name,
+            type: "Out",
+            qty: Number(item.qty),
+            prevStock,
+            newStock,
+            reason: `Sale Invoice: ${sale.invoice}`,
+            doneBy: req.body.currentUserName || "System",
+            date: new Date()
+          });
+        } else {
+          console.error(`[CreateSale] Product not found for atomic update: ${item.productId}`);
+        }
+      } catch (itemErr) {
+        console.error(`[CreateSale] Error updating stock for item ${item.productId}:`, itemErr);
+      }
+    }
+
+    // 3. Create audit log (Non-blocking)
+    try {
       await AuditLog.create({
-        userId: req.body.currentUserId,
+        userId: req.body.currentUserId || "system",
         userName: req.body.currentUserName || "System",
         userRole: req.body.currentUserRole || "Staff",
         action: "sale",
@@ -34,33 +72,18 @@ export const createSale = async (req: Request, res: Response) => {
         details: `Total: PKR ${sale.total}, Items: ${sale.items.length}`,
         ipAddress: req.ip,
       });
-    }
-    
-    // Update stock levels and create movements
-    for (const item of sale.items) {
-      const product = await Product.findById(item.productId);
-      if (product) {
-        const prevStock = product.stock;
-        product.stock -= item.qty;
-        await product.save();
-
-        await StockMovement.create({
-          productId: product._id,
-          productName: product.name,
-          type: "Out",
-          qty: item.qty,
-          prevStock,
-          newStock: product.stock,
-          reason: `Sale Invoice: ${sale.invoice}`,
-          doneBy: "System",
-          date: new Date()
-        });
-      }
+    } catch (auditErr) {
+      console.warn("Audit log creation failed for sale:", auditErr);
     }
     
     res.status(201).json(sale);
-  } catch (error) {
-    res.status(400).json({ message: "Error creating sale" });
+  } catch (error: any) {
+    console.error("Error creating sale:", error);
+    res.status(400).json({ 
+      message: "Error creating sale", 
+      error: error.message,
+      details: error.name === 'ValidationError' ? error.errors : undefined
+    });
   }
 };
 

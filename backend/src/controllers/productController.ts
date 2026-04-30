@@ -13,7 +13,11 @@ export const getProducts = async (req: Request, res: Response) => {
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const product = new Product(req.body);
+    const productData = req.body;
+    if (req.file) {
+      productData.image = `/uploads/${req.file.filename}`;
+    }
+    const product = new Product(productData);
     await product.save();
 
     // Create audit log
@@ -40,7 +44,11 @@ export const createProduct = async (req: Request, res: Response) => {
 
 export const updateProduct = async (req: Request, res: Response) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const productData = req.body;
+    if (req.file) {
+      productData.image = `/uploads/${req.file.filename}`;
+    }
+    const product = await Product.findByIdAndUpdate(req.params.id, productData, { new: true });
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     // Create audit log

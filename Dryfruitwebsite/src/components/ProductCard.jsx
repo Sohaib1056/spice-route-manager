@@ -1,26 +1,101 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ShoppingCart, Check, Star } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { BASE_URL } from '../services/api';
 import toast from 'react-hot-toast';
 
 export default function ProductCard({ product, onProductClick }) {
-  const [selectedWeight, setSelectedWeight] = useState(product.weightOptions[0]);
   const [isAdded, setIsAdded] = useState(false);
   const { addItem } = useCart();
 
+  // Robust parsing of weight options
+  const weightOptions = useMemo(() => {
+    if (!product || !product.weightOptions) return [];
+    if (Array.isArray(product.weightOptions)) {
+      // Check if it's an array with a single comma-separated string
+      if (product.weightOptions.length === 1 && typeof product.weightOptions[0] === 'string' && product.weightOptions[0].includes(',')) {
+        return product.weightOptions[0].split(',').map(w => w.trim()).filter(Boolean);
+      }
+      return product.weightOptions.filter(Boolean);
+    }
+    if (typeof product.weightOptions === 'string') {
+      return product.weightOptions.split(',').map(w => w.trim()).filter(Boolean);
+    }
+    return [];
+  }, [product?.weightOptions]);
+
+  const [selectedWeight, setSelectedWeight] = useState(
+    weightOptions.length > 0 ? weightOptions[0] : ''
+  );
+
+  useEffect(() => {
+    if (weightOptions.length > 0 && !selectedWeight) {
+      setSelectedWeight(weightOptions[0]);
+    }
+  }, [weightOptions, selectedWeight]);
+
   const getStockStatus = (stock) => {
-    if (stock === 0) return { text: 'Stock Khatam', className: 'bg-red-50 text-red-600 border-red-200' };
-    if (stock <= 10) return { text: 'Sirf ' + stock + ' Bache', className: 'bg-amber-50 text-amber-700 border-amber-200' };
-    return { text: 'Available', className: 'bg-green-50 text-green-700 border-green-200' };
+    if (stock <= 0) return { text: 'Stock Khatam', className: 'bg-red-50 text-red-600 border-red-200', isLow: true };
+    if (stock <= (product.minStock || 5)) return { text: `${stock} kg Bache`, className: 'bg-amber-50 text-amber-700 border-amber-200', isLow: true };
+    return { text: `${stock} kg Available`, className: 'bg-green-50 text-green-700 border-green-200', isLow: false };
   };
 
   const stockStatus = getStockStatus(product.stock);
 
+  const isDiscountEligible = (weight) => {
+    return product.discountPercentage > 0;
+  };
+
+  const calculatePriceForWeight = (weight, basePricePerKg) => {
+    const w = weight.toLowerCase();
+    let multiplier = 1;
+    
+    if (w.includes('250g') || w.includes('250 g')) multiplier = 0.25;
+    else if (w.includes('500g') || w.includes('500 g')) multiplier = 0.5;
+    else if (w.includes('750g') || w.includes('750 g')) multiplier = 0.75;
+    else if (w.includes('1kg') || w.includes('1000g') || w.includes('1 kg')) multiplier = 1;
+    
+    return Math.round(basePricePerKg * multiplier);
+  };
+
+  const basePrice = product.sellPrice || 0;
+  const hasDiscount = product.discountPercentage > 0;
+  
+  // Calculate the original (before discount) base price
+  const originalBasePrice = hasDiscount 
+    ? Math.round(basePrice / (1 - product.discountPercentage / 100))
+    : basePrice;
+
+  const currentPrice = calculatePriceForWeight(selectedWeight, basePrice);
+  const originalPriceCalculated = calculatePriceForWeight(selectedWeight, originalBasePrice);
+  
+  const displayPrice = currentPrice;
+
   const handleAddToCart = (e) => {
     e.stopPropagation();
-    if (product.stock === 0) return;
+    if (product.stock <= 0) {
+      toast.error("Stock khatam ho gaya hai!");
+      return;
+    }
     
-    addItem(product, selectedWeight);
+    // Check if adding this would exceed stock (simplified check here, more robust in Context)
+    // We assume 1kg base for multiplier check
+    const weightInKg = currentPrice / basePrice;
+    if (weightInKg > product.stock) {
+      toast.error(`Maazrat! Sirf ${product.stock}kg stock bacha hai.`);
+      return;
+    }
+    
+    // Create a copy of product with the calculated price for the cart
+    const productWithCalculatedPrice = {
+      ...product,
+      pricePerWeight: {
+        ...product.pricePerWeight,
+        [selectedWeight]: displayPrice
+      }
+    };
+    
+    addItem(productWithCalculatedPrice, selectedWeight);
     setIsAdded(true);
     
     toast.custom((t) => (
@@ -62,11 +137,25 @@ export default function ProductCard({ product, onProductClick }) {
             {product.badge}
           </span>
         )}
+
+        {product.discountPercentage > 0 && isDiscountEligible(selectedWeight) && (
+          <span className="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md z-10 shadow-sm animate-pulse">
+            {product.discountPercentage}% OFF
+          </span>
+        )}
         
-        {/* Product Logo/Emoji */}
-        <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
-          {product.emoji || '🥜'}
-        </div>
+        {/* Product Image or Emoji */}
+        {product.image ? (
+          <img 
+            src={product.image.startsWith('http') ? product.image : `${BASE_URL}${product.image}`} 
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          />
+        ) : (
+          <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
+            {product.emoji || '🥜'}
+          </div>
+        )}
         
         {/* Rating */}
         <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 px-1.5 py-0.5 rounded shadow-sm border border-slate-100">
@@ -87,8 +176,8 @@ export default function ProductCard({ product, onProductClick }) {
         </div>
 
         {/* Weight Selection */}
-        <div className="flex flex-wrap gap-1 mb-4">
-          {product.weightOptions.map((weight) => (
+        <div className="flex flex-wrap gap-1 mb-4 min-h-[32px]">
+          {weightOptions.map((weight) => (
             <button
               key={weight}
               onClick={(e) => {
@@ -104,15 +193,25 @@ export default function ProductCard({ product, onProductClick }) {
               {weight}
             </button>
           ))}
+          {weightOptions.length === 0 && (
+            <span className="text-[10px] text-slate-400 italic">No weight options</span>
+          )}
         </div>
 
         {/* Price & Stock */}
         <div className="flex items-center justify-between mt-auto mb-4 pt-2 border-t border-slate-50">
           <div className="flex flex-col">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Price</span>
-            <span className="text-base font-black text-slate-900 leading-none">
-              Rs. {product.pricePerWeight[selectedWeight].toLocaleString()}
-            </span>
+            <div className="flex flex-col">
+              {hasDiscount && (
+                <span className="text-[10px] text-slate-400 line-through decoration-red-400/50">
+                  Rs. {originalPriceCalculated.toLocaleString()}
+                </span>
+              )}
+              <span className="text-base font-black text-slate-900 leading-none">
+                Rs. {displayPrice.toLocaleString()}
+              </span>
+            </div>
           </div>
           <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border ${stockStatus.className}`}>
             {stockStatus.text}

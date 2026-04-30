@@ -4,6 +4,8 @@ import Product from "../models/Product";
 import StockMovement from "../models/StockMovement";
 import Supplier from "../models/Supplier";
 import AuditLog from "../models/AuditLog";
+import path from "path";
+import fs from "fs";
 
 export const getPurchases = async (req: Request, res: Response) => {
   try {
@@ -73,23 +75,32 @@ export const createPurchase = async (req: Request, res: Response) => {
 
     if (purchase.status === "Received") {
       for (const item of purchase.items) {
-        const product = await Product.findById(item.productId);
-        if (product) {
-          const prevStock = product.stock;
-          product.stock += item.qty;
-          await product.save();
+        try {
+          // Use findOneAndUpdate with $inc for atomic database-level update
+          const updatedProduct = await Product.findOneAndUpdate(
+            { _id: item.productId },
+            { $inc: { stock: Number(item.qty) || 0 } },
+            { new: true }
+          );
 
-          await StockMovement.create({
-            productId: product._id,
-            productName: product.name,
-            type: "In",
-            qty: item.qty,
-            prevStock,
-            newStock: product.stock,
-            reason: `Purchase Order: ${purchase.po}`,
-            doneBy: "System",
-            date: new Date()
-          });
+          if (updatedProduct) {
+            const newStock = updatedProduct.stock;
+            const prevStock = newStock - (Number(item.qty) || 0);
+
+            await StockMovement.create({
+              productId: updatedProduct._id,
+              productName: updatedProduct.name,
+              type: "In",
+              qty: Number(item.qty),
+              prevStock,
+              newStock,
+              reason: `Purchase Order (Creation): ${purchase.po}`,
+              doneBy: "System",
+              date: new Date()
+            });
+          }
+        } catch (itemErr) {
+          console.error(`[CreatePurchase] Stock update failed for item ${item.productId}:`, itemErr);
         }
       }
     }
@@ -103,55 +114,139 @@ export const createPurchase = async (req: Request, res: Response) => {
 
 export const receivePurchase = async (req: Request, res: Response) => {
   try {
-    const purchase = await Purchase.findById(req.params.id);
-    if (!purchase) return res.status(404).json({ message: "Purchase order not found" });
-    
-    if (purchase.status !== "Received") {
-      purchase.status = "Received";
-      purchase.receivedDate = new Date();
-      await purchase.save();
+    const { id } = req.params;
+    const { receivedDate, notes, currentUserId, currentUserName, currentUserRole } = req.body;
 
-      // Create audit log
-      if (req.body.currentUserId) {
-        await AuditLog.create({
-          userId: req.body.currentUserId,
-          userName: req.body.currentUserName || "System",
-          userRole: req.body.currentUserRole || "Staff",
-          action: "update",
-          category: "transaction",
-          severity: "info",
-          module: "Purchases",
-          description: `Purchase order received: ${purchase.po}`,
-          details: `Status updated to Received`,
-          ipAddress: req.ip,
-        });
-      }
-      
-      for (const item of purchase.items) {
-        const product = await Product.findById(item.productId);
-        if (product) {
-          const prevStock = product.stock;
-          product.stock += item.qty;
-          await product.save();
+    console.log(`[ReceivePurchase] START - PO ID: ${id}`);
 
-          await StockMovement.create({
-            productId: product._id,
-            productName: product.name,
-            type: "In",
-            qty: item.qty,
-            prevStock,
-            newStock: product.stock,
-            reason: `Received Purchase Order: ${purchase.po}`,
-            doneBy: "System",
-            date: new Date()
-          });
-        }
-      }
+    const purchase = await Purchase.findById(id);
+    if (!purchase) {
+      console.error(`[ReceivePurchase] NOT FOUND: ${id}`);
+      return res.status(404).json({ message: "Purchase order not found" });
     }
     
-    res.json(purchase);
-  } catch (error) {
-    res.status(400).json({ message: "Error receiving purchase" });
+    if (purchase.status === "Received") {
+      console.log(`[ReceivePurchase] ALREADY RECEIVED: ${purchase.po}`);
+      return res.json(purchase);
+    }
+
+    // 1. Handle Supplier Bill (Safe Parsing)
+    if (req.file) {
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      purchase.supplierBill = {
+        name: req.file.originalname,
+        url: fileUrl,
+        size: req.file.size
+      };
+    } else if (req.body.supplierBill && req.body.supplierBill !== "undefined") {
+      try {
+        const bill = typeof req.body.supplierBill === 'string' 
+          ? JSON.parse(req.body.supplierBill) 
+          : req.body.supplierBill;
+        if (bill && (bill.url || bill.name)) {
+          purchase.supplierBill = bill;
+        }
+      } catch (e) {
+        console.warn("[ReceivePurchase] supplierBill parse failed, skipping");
+      }
+    }
+
+    // 2. Update Status and Date
+    purchase.status = "Received";
+    const rDate = receivedDate ? new Date(receivedDate) : new Date();
+    purchase.receivedDate = isNaN(rDate.getTime()) ? new Date() : rDate;
+
+    // 3. Save Purchase FIRST (Database Check)
+    console.log(`[ReceivePurchase] SAVING PURCHASE: ${purchase.po}`);
+    try {
+      purchase.markModified('supplierBill');
+      await purchase.save();
+    } catch (saveErr: any) {
+      console.error(`[ReceivePurchase] SAVE FAILED:`, saveErr);
+      
+      // LOG THE EXACT VALIDATION ERRORS IF THEY EXIST
+      if (saveErr.name === 'ValidationError') {
+        console.error(`[ReceivePurchase] Validation Details:`, JSON.stringify(saveErr.errors, null, 2));
+        return res.status(400).json({ 
+          message: "Validation Error", 
+          details: Object.keys(saveErr.errors).reduce((acc: any, key) => {
+            acc[key] = saveErr.errors[key].message;
+            return acc;
+          }, {})
+        });
+      }
+      return res.status(500).json({ message: "Database Save Error", error: saveErr.message });
+    }
+
+    // 4. Strict Inventory Update
+    console.log(`[ReceivePurchase] Updating inventory for ${purchase.items.length} items`);
+    for (const item of purchase.items) {
+      try {
+        if (!item.productId) continue;
+        
+        // Use findOneAndUpdate with $inc for atomic database-level update
+        const updatedProduct = await Product.findOneAndUpdate(
+          { _id: item.productId },
+          { $inc: { stock: Number(item.qty) || 0 } },
+          { new: true }
+        );
+
+        if (updatedProduct) {
+          const newStock = updatedProduct.stock;
+          const prevStock = newStock - (Number(item.qty) || 0);
+          
+          console.log(`[ReceivePurchase] Atomic Stock Update for ${updatedProduct.name}: ${prevStock} -> ${newStock}`);
+
+          // Log stock movement (non-blocking)
+          try {
+            await StockMovement.create({
+              productId: updatedProduct._id,
+              productName: updatedProduct.name,
+              type: "In",
+              qty: Number(item.qty),
+              prevStock,
+              newStock,
+              reason: `PO Received: ${purchase.po}`,
+              doneBy: currentUserName || "System",
+              date: new Date()
+            });
+          } catch (logErr) {
+            console.warn(`[ReceivePurchase] StockMovement log failed for ${updatedProduct.name}`);
+          }
+        } else {
+          console.error(`[ReceivePurchase] Product not found for atomic update: ${item.productId}`);
+        }
+      } catch (itemErr: any) {
+        console.error(`[ReceivePurchase] Item Update Failed for ${item.name}:`, itemErr);
+      }
+    }
+
+    // 5. Audit Log (Optional)
+    try {
+      await AuditLog.create({
+        userId: currentUserId || "system",
+        userName: currentUserName || "System",
+        userRole: currentUserRole || "Staff",
+        action: "update",
+        category: "transaction",
+        severity: "info",
+        module: "Purchases",
+        description: `PO Received: ${purchase.po}`,
+        details: `Total: PKR ${purchase.total}`,
+        ipAddress: req.ip,
+      });
+    } catch (auditErr) {
+      console.warn("[ReceivePurchase] Audit log failed");
+    }
+    
+    console.log(`[ReceivePurchase] SUCCESS: ${purchase.po}`);
+    return res.json(purchase);
+  } catch (error: any) {
+    console.error("[ReceivePurchase] UNEXPECTED FATAL ERROR:", error);
+    return res.status(500).json({ 
+      message: "Unexpected Server Error", 
+      error: error.message 
+    });
   }
 };
 
@@ -160,14 +255,74 @@ export const updatePurchase = async (req: Request, res: Response) => {
     const oldPurchase = await Purchase.findById(req.params.id);
     if (!oldPurchase) return res.status(404).json({ message: "Purchase order not found" });
     
+    const wasReceived = oldPurchase.status === "Received";
+    const oldItems = JSON.parse(JSON.stringify(oldPurchase.items));
     const oldTotal = oldPurchase.total;
     const oldSupplierId = oldPurchase.supplierId;
     
     const purchase = await Purchase.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!purchase) return res.status(404).json({ message: "Purchase order not found" });
     
+    const isReceived = purchase.status === "Received";
     const newTotal = purchase.total;
     const newSupplierId = purchase.supplierId;
+
+    // --- Stock Sync Logic ---
+    // If order WAS received and now its items or status changed, we need to revert old stock and apply new
+    if (wasReceived) {
+      for (const item of oldItems) {
+        try {
+          const updatedProduct = await Product.findOneAndUpdate(
+            { _id: item.productId },
+            { $inc: { stock: -Number(item.qty) } },
+            { new: true }
+          );
+          if (updatedProduct) {
+            await StockMovement.create({
+              productId: updatedProduct._id,
+              productName: updatedProduct.name,
+              type: "Out",
+              qty: item.qty,
+              prevStock: updatedProduct.stock + Number(item.qty),
+              newStock: updatedProduct.stock,
+              reason: `Edit Purchase Order (Revert): ${purchase.po}`,
+              doneBy: "System",
+              date: new Date()
+            });
+          }
+        } catch (err) {
+          console.error(`Stock revert failed for item ${item.productId}`, err);
+        }
+      }
+    }
+
+    // If order IS NOW received (either it was already or it's newly received), apply new stock
+    if (isReceived) {
+      for (const item of purchase.items) {
+        try {
+          const updatedProduct = await Product.findOneAndUpdate(
+            { _id: item.productId },
+            { $inc: { stock: Number(item.qty) } },
+            { new: true }
+          );
+          if (updatedProduct) {
+            await StockMovement.create({
+              productId: updatedProduct._id,
+              productName: updatedProduct.name,
+              type: "In",
+              qty: item.qty,
+              prevStock: updatedProduct.stock - Number(item.qty),
+              newStock: updatedProduct.stock,
+              reason: `Edit Purchase Order (Apply): ${purchase.po}`,
+              doneBy: "System",
+              date: new Date()
+            });
+          }
+        } catch (err) {
+          console.error(`Stock apply failed for item ${item.productId}`, err);
+        }
+      }
+    }
     
     // Update supplier totals
     if (oldSupplierId.toString() === newSupplierId.toString()) {

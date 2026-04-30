@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import { products, categories } from '../data/products';
+import { categories } from '../data/products';
 import { Filter, Search, X } from 'lucide-react';
+import { productStats } from '../services/api';
 
 export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) {
+  const [dbProducts, setDbProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('featured');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
@@ -12,19 +15,31 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    fetchProducts();
   }, []);
 
+  const fetchProducts = async () => {
+    try {
+      const data = await productStats.getAll();
+      setDbProducts(data);
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleProductClick = (product) => {
-    navigate(`/product/${product.id}`);
+    navigate(`/product/${product.id || product._id}`);
   };
 
   // Combine external and local search
   const effectiveSearchQuery = localSearchQuery || externalSearchQuery;
 
   // Filter products based on search and category
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = dbProducts.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(effectiveSearchQuery.toLowerCase()) ||
-                         product.nameUrdu.includes(effectiveSearchQuery) ||
+                         (product.nameUrdu && product.nameUrdu.includes(effectiveSearchQuery)) ||
                          product.category.toLowerCase().includes(effectiveSearchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -32,19 +47,29 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
 
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
+    const aPrice = a.pricePerWeight?.['250g'] || a.sellPrice || 0;
+    const bPrice = b.pricePerWeight?.['250g'] || b.sellPrice || 0;
     switch (sortBy) {
       case 'price-low':
-        return a.pricePerWeight['250g'] - b.pricePerWeight['250g'];
+        return aPrice - bPrice;
       case 'price-high':
-        return b.pricePerWeight['250g'] - a.pricePerWeight['250g'];
+        return bPrice - aPrice;
       case 'rating':
-        return b.rating - a.rating;
+        return (b.rating || 0) - (a.rating || 0);
       case 'name':
         return a.name.localeCompare(b.name);
       default:
         return 0;
     }
   });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-6 md:py-10">
@@ -148,7 +173,7 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
               <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
                 {sortedProducts.map((product) => (
                   <ProductCard
-                    key={product.id}
+                    key={product.id || product._id}
                     product={product}
                     onProductClick={() => handleProductClick(product)}
                   />

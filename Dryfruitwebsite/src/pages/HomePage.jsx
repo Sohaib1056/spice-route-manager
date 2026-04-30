@@ -4,20 +4,33 @@ import Hero from '../components/Hero';
 import AboutSection from '../components/AboutSection';
 import ContactSection from '../components/ContactSection';
 import ProductCard from '../components/ProductCard';
-import { products } from '../data/products';
 import { ArrowRight } from 'lucide-react';
+import { productStats } from '../services/api';
 
 export default function HomePage() {
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    fetchFeaturedProducts();
   }, []);
 
-  // Dashboard ke liye sirf featured/best seller products dikhao
-  const featuredProducts = products
-    .filter(product => product.badge === 'Best Seller')
-    .slice(0, 6);
+  const fetchFeaturedProducts = async () => {
+    try {
+      const data = await productStats.getAll();
+      // Filter featured/best seller products from DB
+      const featured = data
+        .filter(product => product.badge === 'Best Seller' || product.rating >= 4.8)
+        .slice(0, 6);
+      setFeaturedProducts(featured);
+    } catch (error) {
+      console.error('Failed to fetch featured products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProductClick = (product) => {
     navigate(`/product/${product.id}`);
@@ -53,13 +66,19 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onClick={() => handleProductClick(product)}
-              />
-            ))}
+            {loading ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse bg-white rounded-2xl h-80 shadow-sm border border-slate-200"></div>
+              ))
+            ) : (
+              featuredProducts.map((product) => (
+                <ProductCard
+                  key={product.id || product._id}
+                  product={product}
+                  onClick={() => handleProductClick(product)}
+                />
+              ))
+            )}
           </div>
 
           {/* View More Button for all screens */}

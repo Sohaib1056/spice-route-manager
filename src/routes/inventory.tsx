@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { Plus, Pencil, Trash2, Package, AlertTriangle, XCircle, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, AlertTriangle, XCircle, DollarSign, Eye, MapPin, Clock, Info, ShieldCheck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
@@ -31,9 +31,122 @@ interface FormVals {
   minStock: number; 
   active: boolean; 
   description?: string;
+  image?: string;
+  discountPercentage?: number;
+  shelfLife?: string;
+  storageInfo?: string;
+  imageFile?: FileList;
 }
 
 // --- Sub-components ---
+
+function ProductDetailsModal({ open, product, onClose }: { open: boolean; product?: Product; onClose: () => void }) {
+  if (!product) return null;
+
+  const margin = product.sellPrice - product.buyPrice;
+  const marginPct = (margin / (product.buyPrice || 1)) * 100;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Product Details" size="lg">
+      <div className="space-y-6">
+        {/* Header Section */}
+        <div className="flex items-start gap-6 pb-6 border-b border-border">
+          <div className="h-24 w-24 rounded-2xl border border-border overflow-hidden bg-muted flex items-center justify-center shrink-0">
+            {product.image ? (
+              <img 
+                src={`${import.meta.env.VITE_API_URL?.replace('/api', '')}${product.image}`} 
+                alt={product.name} 
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-4xl">🥜</span>
+            )}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-1">
+              <h2 className="text-2xl font-bold text-walnut">{product.name}</h2>
+              <Pill tone={categoryTone[product.category as Category]}>{product.category}</Pill>
+            </div>
+            <p className="text-muted-foreground font-mono text-sm mb-2">{product.sku}</p>
+            <div className="flex flex-wrap gap-2">
+              <Pill tone={product.active ? "success" : "muted"}>{product.active ? "Active" : "Inactive"}</Pill>
+              {product.stock <= product.minStock && (
+                <Pill tone="danger">Low Stock Alert</Pill>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Info Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Inventory & Pricing</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Current Stock</p>
+                <p className="text-lg font-bold text-walnut">{product.stock} {product.unit}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Min Level</p>
+                <p className="text-lg font-bold text-walnut">{product.minStock} {product.unit}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Buy Price</p>
+                <p className="text-lg font-bold text-walnut">{formatPKR(product.buyPrice)}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Sell Price</p>
+                <p className="text-lg font-bold text-walnut">{formatPKR(product.sellPrice)}</p>
+              </div>
+            </div>
+            <div className="p-4 rounded-xl bg-success/5 border border-success/20">
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-bold text-success">Expected Margin</p>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-success">{formatPKR(margin)}</p>
+                  <p className="text-xs text-success/70">{marginPct.toFixed(1)}% profit margin</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Website Details</h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
+                <Clock className="w-4 h-4 text-info" />
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Shelf Life</p>
+                  <p className="text-sm font-semibold">{product.shelfLife || 'Not set'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
+                <Info className="w-4 h-4 text-amber-500" />
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Storage Info</p>
+                  <p className="text-sm font-semibold">{product.storageInfo || 'Not set'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
+                <DollarSign className="w-4 h-4 text-success" />
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase">Active Discount</p>
+                  <p className="text-sm font-semibold">{product.discountPercentage ? `${product.discountPercentage}% OFF` : 'No discount'}</p>
+                </div>
+              </div>
+            </div>
+            {product.description && (
+              <div className="p-4 rounded-xl border border-border bg-muted/30">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Description</p>
+                <p className="text-sm text-walnut italic">"{product.description}"</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function Field({ label, error, children, className = "" }: { label: string; error?: string; children: React.ReactNode; className?: string }) {
   return (
@@ -46,18 +159,20 @@ function Field({ label, error, children, className = "" }: { label: string; erro
 }
 
 function ProductModal({ open, editing, onClose, onSave }: { open: boolean; editing?: Product; onClose: () => void; onSave: (v: FormVals) => void }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormVals>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormVals>({
     defaultValues: editing
       ? { ...editing as any }
-      : { name: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" },
+      : { name: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "", image: "", discountPercentage: 0, shelfLife: "", storageInfo: "" },
   });
+
+  const selectedImage = watch("imageFile");
 
   // Reset form when editing changes or modal opens/closes
   useEffect(() => {
     if (open) {
       reset(editing 
         ? { ...editing as any } 
-        : { name: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "" }
+        : { name: "", sku: `SKU-${Math.random().toString(36).substring(2, 7).toUpperCase()}`, category: "Nuts", unit: "kg", buyPrice: 0, sellPrice: 0, stock: 0, minStock: 10, active: true, description: "", image: "", discountPercentage: 0, shelfLife: "", storageInfo: "" }
       );
     }
   }, [open, editing, reset]);
@@ -96,6 +211,37 @@ function ProductModal({ open, editing, onClose, onSave }: { open: boolean; editi
         <Field label="Description" className="md:col-span-2">
           <textarea {...register("description")} rows={3} className="input" />
         </Field>
+        <Field label="Weight Options (comma separated)" className="md:col-span-2">
+          <input {...register("weightOptions")} className="input" placeholder="250g, 500g, 1kg" />
+        </Field>
+        <Field label="Shelf Life (e.g. 6 Months)">
+          <input {...register("shelfLife")} className="input" placeholder="6 Months" />
+        </Field>
+        <Field label="Storage Info (e.g. Keep in cool place)">
+          <input {...register("storageInfo")} className="input" placeholder="Keep in cool place" />
+        </Field>
+        <Field label="Upload Product Image" className="md:col-span-2">
+          <div className="flex items-center gap-4">
+            <input 
+              type="file" 
+              {...register("imageFile")} 
+              accept="image/*"
+              className="input flex-1" 
+            />
+            {(selectedImage?.[0] || editing?.image) && (
+              <div className="h-10 w-10 rounded-lg border border-border overflow-hidden bg-muted">
+                <img 
+                  src={selectedImage?.[0] ? URL.createObjectURL(selectedImage[0]) : `${import.meta.env.VITE_API_URL?.replace('/api', '')}${editing?.image}`} 
+                  alt="Preview" 
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
+          </div>
+        </Field>
+        <Field label="Discount Percentage (%)">
+          <input type="number" {...register("discountPercentage", { valueAsNumber: true })} className="input" placeholder="e.g. 10" />
+        </Field>
         <label className="md:col-span-2 flex items-center gap-2">
           <input type="checkbox" {...register("active")} className="h-4 w-4 accent-[var(--color-amber-brand)]" />
           <span className="text-sm font-medium text-walnut">Active</span>
@@ -115,6 +261,7 @@ export default function InventoryPage() {
   const [status, setStatus] = useState<string>("All");
   const [sort, setSort] = useState<string>("name");
   const [modal, setModal] = useState<{ open: boolean; editing?: Product }>({ open: false });
+  const [viewModal, setViewModal] = useState<{ open: boolean; product?: Product }>({ open: false });
   const [confirmState, setConfirmState] = useState<{ open: boolean; id: string }>({
     open: false,
     id: "",
@@ -156,16 +303,27 @@ export default function InventoryPage() {
 
   const handleSave = async (vals: FormVals) => {
     try {
+      const { imageFile, weightOptions, ...productData } = vals;
+      const file = imageFile?.[0];
+
+      // Convert comma separated string to array
+      const weights = typeof weightOptions === 'string' 
+        ? weightOptions.split(',').map(w => w.trim()).filter(w => w !== "")
+        : weightOptions;
+
+      const finalData = { ...productData, weightOptions: weights };
+
       if (modal.editing) {
-        await store.updateProduct(modal.editing.id, vals);
+        await store.updateProduct(modal.editing.id, finalData, file);
         toast.success("Product updated");
       } else {
-        await store.addProduct(vals as any);
+        await store.addProduct(finalData as any, file);
         toast.success("Product added");
       }
       setList([...store.getProducts()]);
       setModal({ open: false });
     } catch (error) {
+      console.error("Error saving product:", error);
       toast.error("Failed to save product");
     }
   };
@@ -277,6 +435,7 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setViewModal({ open: true, product: p })} className="rounded-lg p-2 text-info hover:bg-info/10 transition-colors" title="View Details"><Eye className="h-4 w-4" /></button>
                         <button onClick={() => setModal({ open: true, editing: p })} className="rounded-lg p-2 text-amber-brand hover:bg-amber-brand/10 transition-colors" title="Edit"><Pencil className="h-4 w-4" /></button>
                         <button onClick={() => onDelete(p.id)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10 transition-colors" title="Delete"><Trash2 className="h-4 w-4" /></button>
                       </div>
@@ -295,6 +454,12 @@ export default function InventoryPage() {
         editing={modal.editing}
         onClose={() => setModal({ open: false })}
         onSave={handleSave}
+      />
+
+      <ProductDetailsModal
+        open={viewModal.open}
+        product={viewModal.product}
+        onClose={() => setViewModal({ open: false })}
       />
 
       <ConfirmDialog
