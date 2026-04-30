@@ -479,6 +479,10 @@ class DataStore {
       await this.refreshDashboard();
       return updatedPurchase;
     } catch (error) {
+      console.error("Error updating purchase", error);
+      throw error;
+    }
+  }
 
   async deletePurchase(id: string) {
     try {
