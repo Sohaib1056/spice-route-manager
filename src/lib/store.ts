@@ -148,6 +148,7 @@ class DataStore {
 
   async init() {
     try {
+      console.log("[DataStore] Initializing all data sources...");
       const results = await Promise.allSettled([
         api.get("/products"),
         api.get("/suppliers"),
@@ -159,11 +160,26 @@ class DataStore {
 
       const [prod, supp, sale, pur, move, dash] = results;
 
-      if (prod.status === "fulfilled") this.products = prod.value.data.map(normalize);
-      if (supp.status === "fulfilled") this.suppliers = supp.value.data.map(normalize);
-      if (sale.status === "fulfilled") this.sales = sale.value.data.map(normalize);
-      if (pur.status === "fulfilled") this.purchases = pur.value.data.map(normalize);
-      if (move.status === "fulfilled") this.movements = move.value.data.map(normalize);
+      if (prod.status === "fulfilled") {
+        this.products = prod.value.data.map(normalize);
+        console.log(`[DataStore] Products loaded: ${this.products.length}`);
+      }
+      if (supp.status === "fulfilled") {
+        this.suppliers = supp.value.data.map(normalize);
+      }
+      if (sale.status === "fulfilled") {
+        this.sales = sale.value.data.map(normalize);
+      }
+      if (pur.status === "fulfilled") {
+        this.purchases = pur.value.data.map(normalize);
+      }
+      if (move.status === "fulfilled") {
+        this.movements = move.value.data.map(normalize);
+        console.log(`[DataStore] Movements loaded: ${this.movements.length}`, this.movements);
+      } else {
+        console.error("[DataStore] Movements failed to load:", move.reason?.response?.data || move.reason?.message || move.reason);
+      }
+      
       if (dash.status === "fulfilled") {
         this.dashboard = {
           ...dash.value.data,
@@ -174,6 +190,9 @@ class DataStore {
       const failed = results.filter(r => r.status === "rejected");
       if (failed.length > 0) {
         console.warn(`${failed.length} data sources failed to load, but the rest were initialized.`);
+        failed.forEach((f: any, i) => {
+          console.error(`Source ${i} failure detail:`, f.reason?.response?.data || f.reason?.message || f.reason);
+        });
       }
     } catch (error) {
       console.error("Critical error during store initialization", error);
@@ -282,13 +301,24 @@ class DataStore {
 
   async addPurchase(purchase: Omit<Purchase, "id">) {
     try {
-      const res = await api.post("/purchases", purchase);
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+
+      const payload = {
+        ...purchase,
+        currentUserId: user?._id || user?.id || "system",
+        currentUserName: user?.name || "System",
+        currentUserRole: user?.role || "Staff"
+      };
+
+      console.log("[DataStore] Sending Purchase Payload:", JSON.stringify(payload, null, 2));
+      const res = await api.post("/purchases", payload);
       const newPurchase = normalize(res.data);
       this.purchases = [newPurchase, ...this.purchases];
       
       if (newPurchase.status === "Received") {
         newPurchase.items.forEach((item: any) => {
-          const product = this.products.find(p => p.id === item.productId);
+          const product = this.products.find(p => p.id === item.productId || p._id === item.productId);
           if (product) product.stock += item.qty;
         });
       }
@@ -299,8 +329,12 @@ class DataStore {
       
       await this.refreshDashboard();
       return newPurchase;
-    } catch (error) {
-      console.error("Error adding purchase", error);
+    } catch (error: any) {
+      console.error("[DataStore] Error adding purchase:", error.response?.data || error.message);
+      if (error.response?.data?.message === "Validation Error" && error.response?.data?.details) {
+        const details = JSON.stringify(error.response.data.details);
+        console.error("[DataStore] Validation details:", details);
+      }
       throw error;
     }
   }
@@ -352,17 +386,31 @@ class DataStore {
 
   async addProduct(product: Omit<Product, "id">, imageFile?: File) {
     try {
-      let data: any = product;
-      let headers = {};
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
 
+      let data: any = {
+        ...product,
+        currentUserId: user?._id || user?.id || "system",
+        currentUserName: user?.name || "System",
+        currentUserRole: user?.role || "Admin"
+      };
+      let headers: any = {};
+
+      // If we have an image, we MUST use FormData
       if (imageFile) {
         const formData = new FormData();
-        Object.keys(product).forEach(key => {
-          if (product[key as keyof typeof product] !== undefined) {
-            formData.append(key, String(product[key as keyof typeof product]));
+        Object.keys(data).forEach(key => {
+          if (data[key] !== undefined) {
+            // Convert objects/arrays to strings for FormData
+            if (typeof data[key] === 'object') {
+              formData.append(key, JSON.stringify(data[key]));
+            } else {
+              formData.append(key, String(data[key]));
+            }
           }
         });
-        formData.append("imageFile", imageFile);
+        formData.append("image", imageFile); // 'image' field expected by multer
         data = formData;
         headers = { "Content-Type": "multipart/form-data" };
       }
@@ -373,24 +421,36 @@ class DataStore {
       await this.refreshDashboard();
       return newProd;
     } catch (error) {
-      console.error("Error adding product", error);
+      console.error("[DataStore] Error adding product:", error);
       throw error;
     }
   }
 
   async updateProduct(id: string, product: Partial<Product>, imageFile?: File) {
     try {
-      let data: any = product;
-      let headers = {};
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+
+      let data: any = {
+        ...product,
+        currentUserId: user?._id || user?.id || "system",
+        currentUserName: user?.name || "System",
+        currentUserRole: user?.role || "Admin"
+      };
+      let headers: any = {};
 
       if (imageFile) {
         const formData = new FormData();
-        Object.keys(product).forEach(key => {
-          if (product[key as keyof typeof product] !== undefined) {
-            formData.append(key, String(product[key as keyof typeof product]));
+        Object.keys(data).forEach(key => {
+          if (data[key] !== undefined) {
+            if (typeof data[key] === 'object') {
+              formData.append(key, JSON.stringify(data[key]));
+            } else {
+              formData.append(key, String(data[key]));
+            }
           }
         });
-        formData.append("imageFile", imageFile);
+        formData.append("image", imageFile);
         data = formData;
         headers = { "Content-Type": "multipart/form-data" };
       }
@@ -401,7 +461,7 @@ class DataStore {
       await this.refreshDashboard();
       return updatedProd;
     } catch (error) {
-      console.error("Error updating product", error);
+      console.error("[DataStore] Error updating product:", error);
       throw error;
     }
   }
@@ -497,26 +557,6 @@ class DataStore {
     } catch (error) {
       console.error("Error deleting purchase", error);
       throw error;
-    }
-  }
-
-  async init() {
-    try {
-      const [prodRes, suppRes, purchRes, saleRes] = await Promise.all([
-        api.get("/products"),
-        api.get("/suppliers"),
-        api.get("/purchases"),
-        api.get("/sales")
-      ]);
-
-      this.products = prodRes.data.map(normalize);
-      this.suppliers = suppRes.data.map(normalize);
-      this.purchases = purchRes.data.map(normalize);
-      this.sales = saleRes.data.map(normalize);
-      
-      console.log(`[DataStore] Initialized with ${this.products.length} products and ${this.sales.length} sales`);
-    } catch (error) {
-      console.error("[DataStore] Initialization failed:", error);
     }
   }
 

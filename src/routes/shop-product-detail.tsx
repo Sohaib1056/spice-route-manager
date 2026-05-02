@@ -29,6 +29,7 @@ export default function ShopProductDetail() {
       weight: weight.label,
       image: product.image,
     });
+    setQty(1); // Reset quantity after adding to cart
     toast.success(`${product.name} added to cart`);
     open();
   };

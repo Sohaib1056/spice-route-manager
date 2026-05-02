@@ -32,7 +32,7 @@ const SaleSchema: Schema = new Schema({
     name: { type: String, required: true },
     qty: { type: Number, required: true },
     price: { type: Number, required: true },
-    unit: { type: String, required: true }
+    unit: { type: String, default: "pcs" }
   }],
   subtotal: { type: Number, required: true },
   discount: { type: Number, default: 0 },

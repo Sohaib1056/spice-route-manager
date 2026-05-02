@@ -218,8 +218,12 @@ export default function WebsiteOrdersPage() {
 
       toast.success("Order updated successfully");
       setDetailsEditOpen(false);
-      fetchOrders();
-      fetchStats();
+      await fetchOrders();
+      await fetchStats();
+      
+      // Close details if they were open to force refresh
+      if (detailsOpen) setDetailsOpen(false);
+      
     } catch (error) {
       console.error("Error updating order:", error);
       toast.error("Failed to update order");

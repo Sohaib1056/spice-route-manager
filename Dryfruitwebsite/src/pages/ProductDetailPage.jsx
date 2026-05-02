@@ -49,46 +49,64 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetchProductDetails();
+    fetchProductDetails(true);
+
+    // Real-time polling: Refresh stock data every 5 seconds
+    const interval = setInterval(() => fetchProductDetails(false), 5000);
+    return () => clearInterval(interval);
   }, [id]);
 
-  const fetchProductDetails = async () => {
+  const fetchProductDetails = async (isInitial = false) => {
     try {
-      setLoading(true);
-      const allProducts = await productStats.getAll();
-      const foundProduct = allProducts.find(p => (p.id?.toString() === id || p._id === id));
+      console.log(`[ProductDetail] Fetching product: ${id}, isInitial: ${isInitial}`);
+      if (isInitial) setLoading(true);
+      
+      const foundProduct = await productStats.getById(id);
+      console.log(`[ProductDetail] Found product:`, foundProduct ? foundProduct.name : 'Not Found');
       
       if (foundProduct) {
         setProduct(foundProduct);
         
-        // Initial weight selection logic
-        let initialWeights = [];
-        if (foundProduct.weightOptions) {
-          if (Array.isArray(foundProduct.weightOptions)) {
-            if (foundProduct.weightOptions.length === 1 && typeof foundProduct.weightOptions[0] === 'string' && foundProduct.weightOptions[0].includes(',')) {
-              initialWeights = foundProduct.weightOptions[0].split(',').map(w => w.trim()).filter(Boolean);
-            } else {
-              initialWeights = foundProduct.weightOptions.filter(Boolean);
+        if (isInitial) {
+          let initialWeights = [];
+          if (foundProduct.weightOptions) {
+            if (Array.isArray(foundProduct.weightOptions)) {
+              if (foundProduct.weightOptions.length === 1 && typeof foundProduct.weightOptions[0] === 'string' && foundProduct.weightOptions[0].includes(',')) {
+                initialWeights = foundProduct.weightOptions[0].split(',').map(w => w.trim()).filter(Boolean);
+              } else {
+                initialWeights = foundProduct.weightOptions.filter(Boolean);
+              }
+            } else if (typeof foundProduct.weightOptions === 'string') {
+              initialWeights = foundProduct.weightOptions.split(',').map(w => w.trim()).filter(Boolean);
             }
-          } else if (typeof foundProduct.weightOptions === 'string') {
-            initialWeights = foundProduct.weightOptions.split(',').map(w => w.trim()).filter(Boolean);
           }
-        }
 
-        if (initialWeights.length > 0) {
-          setSelectedWeight(initialWeights[0]);
+          if (initialWeights.length > 0) {
+            setSelectedWeight(initialWeights[0]);
+          }
+
+          // Background fetch for related products
+          productStats.getAll().then(allProducts => {
+            const related = allProducts
+              .filter(p => p.category === foundProduct.category && (p._id !== foundProduct._id))
+              .slice(0, 4);
+            setRelatedProducts(related);
+          }).catch(err => console.warn('Related products failed:', err));
         }
-        
-        // Fetch related products
-        const related = allProducts
-          .filter(p => p.category === foundProduct.category && (p.id?.toString() !== id && p._id !== id))
-          .slice(0, 4);
-        setRelatedProducts(related);
+      } else {
+        console.warn(`[ProductDetail] No product found with ID: ${id}`);
+        // If not found, navigate back to products
+        toast.error("Product nahi mila!");
+        navigate('/products');
       }
     } catch (error) {
-      console.error('Error fetching product details:', error);
+      console.error('[ProductDetail] Error:', error);
+      if (isInitial) {
+        toast.error("Data load karne mein masla hua!");
+        setLoading(false); // Make sure loading stops even on error
+      }
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
@@ -98,10 +116,15 @@ export default function ProductDetailPage() {
     }
   }, [weightOptions, selectedWeight]);
 
-  if (loading) {
+  if (loading && !product) {
     return (
       <div className="min-h-screen bg-slate-100/80 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <p className="text-sm font-black text-slate-400 uppercase tracking-widest animate-pulse">
+            Loading Product...
+          </p>
+        </div>
       </div>
     );
   }

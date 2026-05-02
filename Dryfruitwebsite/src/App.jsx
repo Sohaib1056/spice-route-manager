@@ -18,7 +18,7 @@ function App() {
     <BrowserRouter>
       <CartProvider>
         <div className="min-h-screen bg-cream">
-          <Toaster position="top-right" />
+          <Toaster position="bottom-right" />
           
           <Navbar onSearch={setSearchQuery} />
           

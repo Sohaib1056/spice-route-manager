@@ -88,8 +88,8 @@ export default function CheckoutPage() {
     
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number zaruri hai';
-    } else if (!/^(\+92|0)?[0-9]{10}$/.test(formData.phone.replace(/[-\s]/g, ''))) {
-      newErrors.phone = 'Valid phone number darj karein';
+    } else if (!/^((\+92)|(0092)|(0))?(3[0-9]{9})$/.test(formData.phone.replace(/[-\s]/g, ''))) {
+      newErrors.phone = 'Valid Pakistani phone number darj karein (e.g. 03001234567)';
     }
     
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -277,16 +277,6 @@ export default function CheckoutPage() {
 
             {/* Main Action Buttons */}
             <div className="space-y-4">
-              <a
-                href={`https://wa.me/923211234567?text=${generateWhatsAppMessage()}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-4 py-5 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all shadow-2xl shadow-green-200 active:scale-95 text-base uppercase tracking-widest group"
-              >
-                <Phone className="w-6 h-6 fill-white group-hover:rotate-12 transition-transform" />
-                WhatsApp Par Order Confirm Karein
-              </a>
-              
               <button
                 onClick={() => navigate('/')}
                 className="w-full flex items-center justify-center gap-2 py-5 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 text-base uppercase tracking-widest"
@@ -294,6 +284,25 @@ export default function CheckoutPage() {
                 <Home className="w-5 h-5" />
                 OK - Dashboard Par Jayein
               </button>
+
+              <div className="relative py-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-slate-200"></span>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-slate-400 font-bold tracking-widest">Ya Phir</span>
+                </div>
+              </div>
+
+              <a
+                href={`https://wa.me/923211234567?text=${generateWhatsAppMessage()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-4 py-5 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all shadow-2xl shadow-green-200 active:scale-95 text-base uppercase tracking-widest group"
+              >
+                <Phone className="w-6 h-6 fill-white group-hover:rotate-12 transition-transform" />
+                WhatsApp Par Details Bhejein
+              </a>
             </div>
 
             <p className="mt-10 text-[11px] text-slate-400 font-bold uppercase tracking-[0.2em] animate-pulse">

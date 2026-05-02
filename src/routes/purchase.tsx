@@ -109,21 +109,46 @@ function NewPOModal({ open, editing, onClose, onSave, products, suppliers, preSe
   const grand = subtotal - totalDiscount + tax;
 
   const submit = (vals: POForm, status: "Draft" | "Sent") => {
-    const sup = suppliers.find((s) => s.id === vals.supplierId)!;
-    const po: Omit<Purchase, "id"> = {
-      po: editing?.po || `PO-${Math.floor(Math.random() * 9000) + 3000}`,
-      date: vals.date,
-      supplierId: sup.id,
-      supplierName: sup.name,
-      items: vals.items.map((it) => {
-        const p = products.find((x) => x.id === it.productId)!;
-        return { productId: p.id, name: p.name, qty: Number(it.qty), price: Number(it.price), unit: p.unit };
-      }),
-      subtotal, discount: totalDiscount, tax, total: grand,
-      status, paymentStatus: editing?.paymentStatus || "Pending",
-    };
-    onSave(po);
-    reset();
+    try {
+      const sup = suppliers.find((s) => s.id === vals.supplierId);
+      if (!sup) {
+        toast.error("Meherbani kar ke supplier select karein");
+        return;
+      }
+
+      const po: Omit<Purchase, "id"> = {
+        po: editing?.po || `PO-${Math.floor(Math.random() * 9000) + 3000}`,
+        date: vals.date,
+        supplierId: sup.id,
+        supplierName: sup.name,
+        items: vals.items.map((it) => {
+          const p = products.find((x) => x.id === it.productId);
+          if (!p) {
+            throw new Error(`Product not found: ${it.productId}`);
+          }
+          return { 
+            productId: p.id || (p as any)._id, 
+            name: p.name, 
+            qty: Number(it.qty) || 0, 
+            price: Number(it.price) || 0, 
+            unit: it.unit || p.unit || "pcs" 
+          };
+        }),
+        subtotal, 
+        discount: totalDiscount, 
+        tax, 
+        total: grand,
+        status, 
+        paymentStatus: editing?.paymentStatus || "Pending",
+      };
+
+      console.log("[PurchasePage] Submitting PO:", po);
+      onSave(po);
+      reset();
+    } catch (err: any) {
+      console.error("[PurchasePage] Submit preparation error:", err);
+      toast.error(err.message || "Order submit karne mein masla aaya");
+    }
   };
 
   return (

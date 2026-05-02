@@ -58,7 +58,11 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
       date: new Date().toISOString().slice(0, 10),
       customer: customer || "Walk-in Customer",
       customerPhone: phone || undefined,
-      items: cart, subtotal, discount, tax, total,
+      items: cart.map(item => ({
+        ...item,
+        unit: item.unit || "pcs"
+      })),
+      subtotal, discount, tax, total,
       payment,
       status: payment === "Credit" ? "Credit" : "Paid",
     };

@@ -15,6 +15,10 @@ export default function HomePage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchFeaturedProducts();
+
+    // Real-time polling: Refresh featured products every 5 seconds
+    const interval = setInterval(fetchFeaturedProducts, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchFeaturedProducts = async () => {

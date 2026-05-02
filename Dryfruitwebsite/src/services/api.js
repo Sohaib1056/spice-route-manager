@@ -10,9 +10,11 @@ const api = axios.create({
 export { BASE_URL };
 
 export const productStats = {
-  getAll: async () => {
+  getAll: async (force = false) => {
     try {
-      const response = await api.get('/products');
+      const response = await api.get('/products', {
+        params: { _t: Date.now() } // Cache busting for real-time updates
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -21,7 +23,9 @@ export const productStats = {
   },
   getById: async (id) => {
     try {
-      const response = await api.get(`/products/${id}`);
+      const response = await api.get(`/products/${id}`, {
+        params: { _t: Date.now() } // Cache busting for real-time updates
+      });
       return response.data;
     } catch (error) {
       console.error(`Error fetching product ${id}:`, error);

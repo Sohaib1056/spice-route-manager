@@ -292,12 +292,13 @@ export default function InventoryPage() {
   };
 
   const doDelete = async (id: string) => {
+    const toastId = toast.loading("Deleting product...");
     try {
       await store.deleteProduct(id);
       setList([...store.getProducts()]);
-      toast.success("Product deleted");
+      toast.success("Product deleted successfully", { id: toastId });
     } catch (error) {
-      toast.error("Failed to delete product");
+      toast.error("Failed to delete product", { id: toastId });
     }
   };
 

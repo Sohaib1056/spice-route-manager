@@ -4,9 +4,16 @@ import { useCart } from '../context/CartContext';
 import { BASE_URL } from '../services/api';
 import toast from 'react-hot-toast';
 
-export default function ProductCard({ product, onProductClick }) {
+export default function ProductCard({ product, onProductClick = () => {} }) {
   const [isAdded, setIsAdded] = useState(false);
   const { addItem } = useCart();
+
+  // Handle card click safely
+  const handleCardClick = () => {
+    if (typeof onProductClick === 'function') {
+      onProductClick(product);
+    }
+  };
 
   // Robust parsing of weight options
   const weightOptions = useMemo(() => {
@@ -121,7 +128,7 @@ export default function ProductCard({ product, onProductClick }) {
 
   return (
     <div
-      onClick={() => onProductClick(product)}
+      onClick={handleCardClick}
       className="bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl border border-slate-200 group flex flex-col h-full min-h-[380px]"
     >
       {/* Image Area */}

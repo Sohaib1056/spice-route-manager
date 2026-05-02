@@ -9,6 +9,7 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
   const [dbProducts, setDbProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [availableCategories, setAvailableCategories] = useState(['All']);
   const [sortBy, setSortBy] = useState('featured');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const navigate = useNavigate();
@@ -16,12 +17,20 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchProducts();
+
+    // Real-time polling: Refresh products every 5 seconds
+    const interval = setInterval(fetchProducts, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchProducts = async () => {
     try {
       const data = await productStats.getAll();
       setDbProducts(data);
+      
+      // Extract unique categories from DB products
+      const cats = ['All', ...new Set(data.map(p => p.category))];
+      setAvailableCategories(cats);
     } catch (error) {
       console.error('Failed to fetch products:', error);
     } finally {
@@ -114,7 +123,7 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
                 <Filter className="w-3 h-3" /> Categories
               </h3>
               <div className="flex flex-col gap-2">
-                {categories.map((category) => (
+                {availableCategories.map((category) => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
@@ -153,16 +162,6 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
                   </svg>
                 </div>
               </div>
-            </div>
-
-            {/* Need Help Card */}
-            <div className="bg-slate-900 rounded-2xl p-6 text-white overflow-hidden relative group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-white/10 transition-all" />
-              <h4 className="text-sm font-black uppercase tracking-wider mb-2 relative z-10">Need Help?</h4>
-              <p className="text-[11px] text-slate-400 font-bold leading-relaxed mb-4 relative z-10">Contact our experts for bulk orders and recommendations.</p>
-              <a href="#contact" className="inline-block w-full text-center bg-amber-500 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] hover:bg-amber-600 transition-colors relative z-10">
-                Contact Us
-              </a>
             </div>
           </aside>
 

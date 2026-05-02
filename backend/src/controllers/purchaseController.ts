@@ -74,9 +74,9 @@ export const createPurchase = async (req: Request, res: Response) => {
     }
 
     if (purchase.status === "Received") {
+      console.log(`[CreatePurchase] Creating movements for Received PO: ${purchase.po}`);
       for (const item of purchase.items) {
         try {
-          // Use findOneAndUpdate with $inc for atomic database-level update
           const updatedProduct = await Product.findOneAndUpdate(
             { _id: item.productId },
             { $inc: { stock: Number(item.qty) || 0 } },
@@ -95,12 +95,12 @@ export const createPurchase = async (req: Request, res: Response) => {
               prevStock,
               newStock,
               reason: `Purchase Order (Creation): ${purchase.po}`,
-              doneBy: "System",
+              doneBy: req.body.currentUserName || "System",
               date: new Date()
             });
           }
         } catch (itemErr) {
-          console.error(`[CreatePurchase] Stock update failed for item ${item.productId}:`, itemErr);
+          console.error(`[CreatePurchase] Movement failed for ${item.productId}:`, itemErr);
         }
       }
     }

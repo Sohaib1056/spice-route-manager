@@ -76,13 +76,26 @@ function History({ movements }: { movements: StockMovement[] }) {
   const perPage = 10;
 
   const filtered = useMemo(() => {
-    return movements.filter((m) => {
+    console.log("[StockPage] Filtering movements:", movements.length);
+    const result = movements.filter((m) => {
       if (type !== "All" && m.type !== type) return false;
       if (q && !m.productName.toLowerCase().includes(q.toLowerCase())) return false;
-      if (from && new Date(m.date) < new Date(from)) return false;
-      if (to && new Date(m.date) > new Date(to)) return false;
+      
+      const moveDate = new Date(m.date);
+      if (from) {
+        const fromDate = new Date(from);
+        fromDate.setHours(0, 0, 0, 0);
+        if (moveDate < fromDate) return false;
+      }
+      if (to) {
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        if (moveDate > toDate) return false;
+      }
       return true;
     });
+    console.log("[StockPage] Filtered result:", result.length);
+    return result;
   }, [movements, q, type, from, to]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / perPage));
@@ -208,9 +221,19 @@ export default function StockPage() {
   const [adjusting, setAdjusting] = useState<Product | null>(null);
 
   useEffect(() => {
-    setProducts(store.getProducts());
-    setMovements(store.getMovements());
-  }, []);
+    const refreshData = async () => {
+      try {
+        await store.init();
+        setProducts(store.getProducts());
+        const moves = store.getMovements();
+        console.log("[StockPage] Fetched movements:", moves);
+        setMovements([...moves]); // Ensure a new array reference to trigger re-render
+      } catch (error) {
+        console.error("Failed to refresh stock data:", error);
+      }
+    };
+    refreshData();
+  }, [tab]);
 
   const handleAdjust = async (qty: number, reason: string) => {
     if (!adjusting) return;

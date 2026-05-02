@@ -23,8 +23,8 @@ export default function AboutSection() {
     },
     { 
       icon: Clock, 
-      number: '2-3', 
-      label: 'Days Delivery',
+      number: '2-4', 
+      label: 'Business Days Delivery',
       description: 'Fast & reliable'
     },
   ];
