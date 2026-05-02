@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { Search, ShoppingCart, Menu, X, User } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, User, Nut } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +20,10 @@ export function ShopNavbar() {
     <header className="sticky top-0 z-40 bg-[#2d1200] text-[#f5e6d0] shadow-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-8">
         <Link to="/" className="flex items-center gap-2 text-lg font-bold text-[#c8860a]" onClick={() => setMobile(false)}>
-          <span className="text-2xl">🌿</span>
-          <span className="font-display tracking-wide">DryFruit Pro</span>
+          <Nut className="h-6 w-6 text-amber-600" />
+          <span className="text-xl font-bold bg-gradient-to-r from-amber-700 to-walnut bg-clip-text text-transparent">
+            Chaman Delight
+          </span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">

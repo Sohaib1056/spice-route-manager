@@ -109,12 +109,12 @@ export default function AboutSection() {
               {/* Badge */}
               <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl p-4 shadow-2xl border border-border/50 backdrop-blur-sm z-10 animate-float">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-success/10 rounded-full flex items-center justify-center">
-                    <Shield className="w-6 h-6 text-success" />
+                  <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center shrink-0 border border-amber-100 shadow-sm">
+                    <Truck className="w-6 h-6 text-amber-600" />
                   </div>
                   <div>
-                    <p className="font-bold text-text-dark">Verified</p>
-                    <p className="text-sm text-text-gray font-medium">Quality Products</p>
+                    <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs mb-1">Fast Delivery</h4>
+                    <p className="text-sm text-slate-500 font-bold">2-4 Business Days delivery all over Pakistan</p>
                   </div>
                 </div>
               </div>

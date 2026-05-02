@@ -30,12 +30,12 @@ interface SettingsContextType {
 }
 
 const defaultSettings: Settings = {
-  companyName: "Spice Route Manager",
+  companyName: "Chaman Delight Dry Fruit",
   ownerName: "Admin",
-  phone: "+92 300 0000000",
-  email: "info@spiceroute.com",
-  address: "Lahore, Pakistan",
-  city: "Lahore",
+  phone: "0326 5153000",
+  email: "chamandelightdryfruit@gmail.com",
+  address: "Billa Chowk Satellite Town Gujranwala Pakistan",
+  city: "Gujranwala",
   ntnNumber: "",
   taxRate: 5,
   currency: "PKR",

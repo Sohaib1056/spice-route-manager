@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { Search, Minus, Plus, Trash2, Printer, Eye } from "lucide-react";
 import { Pill } from "@/components/Pill";
@@ -20,9 +20,16 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
   const [customer, setCustomer] = useState("");
   const [phone, setPhone] = useState("");
   const [discount, setDiscount] = useState(0);
-  const [taxRate, setTaxRate] = useState(settings?.defaultTax ?? 5);
+  const [taxRate, setTaxRate] = useState(settings?.taxRate ?? 5);
   const [payment, setPayment] = useState<"Cash" | "Credit" | "Bank Transfer">("Cash");
   const [received, setReceived] = useState(0);
+
+  // Sync taxRate with settings when settings change
+  useEffect(() => {
+    if (settings?.taxRate !== undefined) {
+      setTaxRate(settings.taxRate);
+    }
+  }, [settings?.taxRate]);
 
   const subtotal = cart.reduce((s, c) => s + c.qty * c.price, 0);
   const tax = (subtotal - discount) * taxRate / 100;
@@ -54,7 +61,7 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
   const complete = () => {
     if (cart.length === 0) { toast.error("Cart is empty"); return; }
     const sale: Omit<Sale, "id"> = {
-      invoice: `INV-${Math.floor(Math.random() * 9000) + 2000}`,
+      invoice: `${settings?.invoicePrefix || "INV-"}${Math.floor(Math.random() * 9000) + 2000}`,
       date: new Date().toISOString().slice(0, 10),
       customer: customer || "Walk-in Customer",
       customerPhone: phone || undefined,
@@ -82,200 +89,176 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
       <head>
         <meta charset="UTF-8">
         <title>Receipt</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
         <style>
-          @page { 
-            size: 80mm auto;
-            margin: 0;
-          }
-          @media print {
-            body { margin: 0; }
-          }
+          @page { size: 80mm auto; margin: 0; }
+          @media print { body { margin: 0; } }
+          * { box-sizing: border-box; }
           body {
-            font-family: 'Courier New', monospace;
+            font-family: 'Inter', sans-serif;
             width: 80mm;
             margin: 0 auto;
-            padding: 8mm 5mm;
-            font-size: 11px;
-            line-height: 1.5;
-            color: #000;
-          }
-          .center { text-align: center; }
-          .bold { font-weight: bold; }
-          .header { 
-            text-align: center; 
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #000;
-          }
-          .company-name { 
-            font-size: 20px; 
-            font-weight: bold; 
-            margin-bottom: 4px;
-            letter-spacing: 1px;
-          }
-          .company-info { 
-            font-size: 9px; 
-            color: #333;
-            line-height: 1.3;
-          }
-          .line { 
-            border-top: 1px dashed #000; 
-            margin: 8px 0; 
-          }
-          .line-solid { 
-            border-top: 1px solid #000; 
-            margin: 8px 0; 
-          }
-          .row { 
-            display: flex; 
-            justify-content: space-between; 
-            margin: 3px 0;
-            font-size: 10px;
-          }
-          .row-bold {
-            display: flex; 
-            justify-content: space-between; 
-            margin: 3px 0;
-            font-weight: bold;
-            font-size: 11px;
-          }
-          .section-title {
-            font-weight: bold;
-            font-size: 11px;
-            margin: 8px 0 4px 0;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .item-name { 
-            font-weight: bold;
-            font-size: 11px;
-            margin-bottom: 2px;
-          }
-          .item-details { 
-            display: flex; 
-            justify-content: space-between; 
-            font-size: 10px;
-            color: #333;
-            margin-bottom: 6px;
-          }
-          .total-section {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 2px solid #000;
-          }
-          .grand-total { 
-            display: flex; 
-            justify-content: space-between;
-            font-weight: bold; 
-            font-size: 14px;
-            margin: 6px 0;
-            padding: 4px 0;
-          }
-          .footer { 
-            margin-top: 12px;
-            padding-top: 8px;
-            border-top: 1px dashed #000;
-            text-align: center;
-            font-size: 9px;
+            padding: 10mm 4mm;
+            font-size: 12px;
             line-height: 1.4;
+            color: #000;
+            background: #fff;
           }
-          .thank-you {
-            font-weight: bold;
-            font-size: 11px;
-            margin-bottom: 4px;
+          .header { text-align: center; margin-bottom: 6mm; }
+          .logo-area { margin-bottom: 2mm; }
+          .logo-text { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase; }
+          .tagline { font-size: 10px; font-weight: 600; color: #444; margin-top: -2px; margin-bottom: 3mm; display: block; }
+          .contact-info { font-size: 10px; line-height: 1.3; color: #333; font-weight: 500; }
+          
+          .divider { border-top: 1px solid #000; margin: 4mm 0; }
+          .divider-dashed { border-top: 1px dashed #444; margin: 3mm 0; }
+          
+          .meta-row { display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 11px; font-weight: 500; }
+          .meta-label { color: #555; }
+          .meta-value { font-weight: 700; }
+          
+          .items-header { 
+            display: grid; 
+            grid-template-columns: 1fr 20mm 20mm; 
+            font-weight: 800; 
+            font-size: 11px; 
+            padding-bottom: 2mm; 
+            border-bottom: 1.5px solid #000;
+            margin-bottom: 2mm;
+            text-transform: uppercase;
           }
-          .powered-by {
-            margin-top: 8px;
-            font-size: 8px;
-            color: #666;
+          .item-row { 
+            display: grid; 
+            grid-template-columns: 1fr 20mm 20mm; 
+            margin-bottom: 3mm; 
+            align-items: start;
           }
+          .item-name { font-weight: 700; font-size: 12px; grid-column: 1 / span 3; margin-bottom: 0.5mm; }
+          .item-qty { font-size: 11px; color: #444; font-weight: 500; }
+          .item-price { font-size: 11px; color: #444; text-align: center; }
+          .item-total { font-size: 11px; font-weight: 700; text-align: right; }
+          
+          .totals-area { margin-top: 4mm; }
+          .total-row { display: flex; justify-content: space-between; margin-bottom: 1.5mm; font-size: 12px; }
+          .total-row.grand { 
+            margin-top: 3mm; 
+            padding-top: 3mm; 
+            border-top: 1.5px solid #000; 
+            font-size: 18px; 
+            font-weight: 800; 
+          }
+          
+          .payment-box { 
+            background: #f9f9f9; 
+            padding: 3mm; 
+            border-radius: 2mm; 
+            margin: 5mm 0; 
+            border: 0.5px solid #eee;
+          }
+          
+          .footer { text-align: center; margin-top: 8mm; padding-top: 4mm; border-top: 1px dashed #ccc; }
+          .thank-you { font-size: 14px; font-weight: 800; margin-bottom: 1mm; text-transform: uppercase; }
+          .footer-note { font-size: 10px; color: #666; font-weight: 500; line-height: 1.3; }
+          .branding { font-size: 8px; color: #aaa; margin-top: 4mm; text-transform: uppercase; letter-spacing: 1px; }
+          
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="company-name">DRYFRUIT PRO</div>
-          <div class="company-info">
-            Spice Route Manager<br/>
-            Tel: +92 300 1234567<br/>
-            www.dryfruitpro.com
+          <div class="logo-area">
+            <div class="logo-text">${settings?.companyName || "CHAMAN DELIGHT"}</div>
+            <span class="tagline">Premium Dry Fruit & Spices</span>
+          </div>
+          <div class="contact-info">
+            ${settings?.address || "Billa Chowk Satellite Town Gujranwala"}<br/>
+            Phone: ${settings?.phone || "0326 5153000"}<br/>
+            ${settings?.email || "chamandelightdryfruit@gmail.com"}
           </div>
         </div>
-        
-        <div class="row-bold">
-          <span>Invoice #:</span>
-          <span>INV-${Math.floor(Math.random() * 9000) + 2000}</span>
+
+        <div class="meta-area">
+          <div class="meta-row">
+            <span class="meta-label">Invoice #</span>
+            <span class="meta-value">${settings?.invoicePrefix || "INV-"}${Math.floor(Math.random() * 9000) + 2000}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Date</span>
+            <span class="meta-value">${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Time</span>
+            <span class="meta-value">${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Customer</span>
+            <span class="meta-value">${customer || 'Walk-in Customer'}</span>
+          </div>
         </div>
-        <div class="row">
-          <span>Date:</span>
-          <span>${new Date().toLocaleDateString('en-GB')}</span>
+
+        <div class="divider"></div>
+
+        <div class="items-header">
+          <span>Description</span>
+          <span class="text-center">Rate</span>
+          <span class="text-right">Amount</span>
         </div>
-        <div class="row">
-          <span>Time:</span>
-          <span>${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-        </div>
-        <div class="row">
-          <span>Customer:</span>
-          <span>${customer || 'Walk-in'}</span>
-        </div>
-        ${phone ? `<div class="row"><span>Phone:</span><span>${phone}</span></div>` : ''}
-        
-        <div class="line-solid"></div>
-        <div class="section-title">ITEMS</div>
-        <div class="line"></div>
-        
+
         ${cart.map(item => `
-          <div class="item-name">${item.name}</div>
-          <div class="item-details">
-            <span>${item.qty} ${item.unit} × ${formatPKR(item.price)}</span>
-            <span>${formatPKR(item.qty * item.price)}</span>
+          <div class="item-row">
+            <div class="item-name">${item.name}</div>
+            <div class="item-qty">${item.qty} ${item.unit} x ${item.price}</div>
+            <div class="item-price">${formatPKR(item.price)}</div>
+            <div class="item-total">${formatPKR(item.qty * item.price)}</div>
           </div>
         `).join('')}
-        
-        <div class="line-solid"></div>
-        
-        <div class="row">
-          <span>Subtotal:</span>
-          <span>${formatPKR(subtotal)}</span>
-        </div>
-        ${discount > 0 ? `
-        <div class="row">
-          <span>Discount:</span>
-          <span>- ${formatPKR(discount)}</span>
-        </div>` : ''}
-        <div class="row">
-          <span>Tax (${taxRate}%):</span>
-          <span>${formatPKR(tax)}</span>
-        </div>
-        
-        <div class="total-section">
-          <div class="grand-total">
-            <span>TOTAL:</span>
+
+        <div class="divider-dashed"></div>
+
+        <div class="totals-area">
+          <div class="total-row">
+            <span>Subtotal</span>
+            <span>${formatPKR(subtotal)}</span>
+          </div>
+          ${discount > 0 ? `
+          <div class="total-row">
+            <span>Discount</span>
+            <span>- ${formatPKR(discount)}</span>
+          </div>` : ''}
+          <div class="total-row">
+            <span>Tax (${taxRate}%)</span>
+            <span>${formatPKR(tax)}</span>
+          </div>
+          <div class="total-row grand">
+            <span>TOTAL</span>
             <span>${formatPKR(total)}</span>
           </div>
         </div>
-        
-        <div class="line"></div>
-        
-        <div class="row-bold">
-          <span>Payment Method:</span>
-          <span>${payment}</span>
+
+        <div class="payment-box">
+          <div class="meta-row">
+            <span class="meta-label">Payment Method</span>
+            <span class="meta-value">${payment}</span>
+          </div>
+          ${payment === 'Cash' ? `
+          <div class="meta-row" style="margin-top: 1mm;">
+            <span class="meta-label">Received</span>
+            <span class="meta-value">${formatPKR(received)}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Change</span>
+            <span class="meta-value">${formatPKR(Math.max(0, change))}</span>
+          </div>` : ''}
         </div>
-        ${payment === 'Cash' ? `
-        <div class="row">
-          <span>Received:</span>
-          <span>${formatPKR(received)}</span>
-        </div>
-        <div class="row">
-          <span>Change:</span>
-          <span>${formatPKR(Math.max(0, change))}</span>
-        </div>` : ''}
-        
+
         <div class="footer">
-          <div class="thank-you">Thank You! - Shukriya!</div>
-          <div>Your satisfaction is our priority</div>
-          <div>Please visit again</div>
-          <div class="powered-by">Powered by DryFruit Pro</div>
+          <div class="thank-you">Shukriya!</div>
+          <div class="footer-note">
+            Your satisfaction is our priority.<br/>
+            Please visit again soon!
+          </div>
+          <div class="branding">Powered by Chaman Delight</div>
         </div>
       </body>
       </html>
@@ -348,28 +331,69 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
           {cart.length === 0 && <p className="text-center text-sm text-muted-foreground py-6">Cart khaali hai</p>}
           {cart.map((c) => (
             <div key={c.productId} className="flex items-center gap-2 rounded-lg bg-cream/60 p-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-walnut truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground">{formatPKR(c.price)} • {c.qty} {c.unit}</p>
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center justify-between w-full">
+                  <p className="text-sm font-bold text-walnut truncate">{c.name}</p>
+                  <button onClick={() => setCart((cc) => cc.filter((x) => x.productId !== c.productId))} className="text-destructive p-1 hover:bg-destructive/10 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+                </div>
+                
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em]">Select Weight</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: "250g", val: 0.25 },
+                        { label: "500g", val: 0.5 },
+                        { label: "750g", val: 0.75 },
+                        { label: "1kg", val: 1 },
+                        { label: "2kg", val: 2 },
+                        { label: "5kg", val: 5 }
+                      ].map((w) => (
+                        <button
+                          key={w.label}
+                          onClick={() => {
+                            setCart((cc) => cc.map((x) => x.productId === c.productId ? { ...x, qty: w.val, unit: "kg" } : x));
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition-all border-2 ${
+                            c.qty === w.val 
+                              ? "bg-amber-brand border-amber-brand text-amber-brand-foreground shadow-sm scale-105" 
+                              : "bg-white border-slate-200 text-slate-600 hover:border-amber-brand/50 hover:text-amber-brand"
+                          }`}
+                        >
+                          {w.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 pt-1 border-t border-slate-50">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em]">Custom Qty (KG)</label>
+                      <div className="flex items-center gap-1 bg-white border-2 border-slate-200 rounded-xl p-1 shadow-sm focus-within:border-amber-brand transition-all">
+                        <button onClick={() => setQty(c.productId, -1)} className="rounded-lg p-1.5 text-walnut hover:bg-slate-100 transition-colors"><Minus className="h-3.5 w-3.5 stroke-[3px]" /></button>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={c.qty}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            if (val >= 0) {
+                              setCart((cc) => cc.map((x) => x.productId === c.productId ? { ...x, qty: val } : x));
+                            }
+                          }}
+                          className="w-20 text-center text-sm font-black text-walnut tabular-nums border-none focus:ring-0 p-0"
+                        />
+                        <button onClick={() => setQty(c.productId, 1)} className="rounded-lg p-1.5 text-walnut hover:bg-slate-100 transition-colors"><Plus className="h-3.5 w-3.5 stroke-[3px]" /></button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1 ml-auto text-right">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.1em]">Item Total</label>
+                      <p className="text-base font-black text-amber-brand tabular-nums">{formatPKR(c.qty * c.price)}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setQty(c.productId, -1)} className="rounded-md border border-border p-1 text-walnut hover:bg-cream"><Minus className="h-3 w-3" /></button>
-                <input
-                  type="number"
-                  value={c.qty}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    if (val > 0) {
-                      setCart((cc) => cc.map((x) => x.productId === c.productId ? { ...x, qty: val } : x));
-                    }
-                  }}
-                  className="w-16 text-center text-sm font-medium text-walnut tabular-nums border border-border rounded px-1 py-0.5 focus:outline-none focus:border-amber-brand focus:ring-1 focus:ring-amber-brand"
-                  placeholder={c.unit}
-                />
-                <button onClick={() => setQty(c.productId, 1)} className="rounded-md border border-border p-1 text-walnut hover:bg-cream"><Plus className="h-3 w-3" /></button>
-              </div>
-              <p className="w-20 text-right text-sm font-medium text-walnut tabular-nums">{formatPKR(c.qty * c.price)}</p>
-              <button onClick={() => setCart((cc) => cc.filter((x) => x.productId !== c.productId))} className="text-destructive p-1 hover:bg-destructive/10 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
           ))}
         </div>
@@ -418,6 +442,7 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
 }
 
 function History({ list }: { list: Sale[] }) {
+  const { settings } = useSettings();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [q, setQ] = useState("");
@@ -466,7 +491,7 @@ function History({ list }: { list: Sale[] }) {
             border-bottom: 2px solid #000;
           }
           .company-name { 
-            font-size: 20px; 
+            font-size: 18px; 
             font-weight: bold; 
             margin-bottom: 4px;
             letter-spacing: 1px;
@@ -552,11 +577,11 @@ function History({ list }: { list: Sale[] }) {
       </head>
       <body>
         <div class="header">
-          <div class="company-name">DRYFRUIT PRO</div>
+          <div class="company-name">${settings?.companyName || "CHAMAN DELIGHT"}</div>
           <div class="company-info">
-            Spice Route Manager<br/>
-            Tel: +92 300 1234567<br/>
-            www.dryfruitpro.com
+            ${settings?.address || "Billa Chowk Satellite Town Gujranwala"}<br/>
+            Tel: ${settings?.phone || "0326 5153000"}<br/>
+            ${settings?.email || "chamandelightdryfruit@gmail.com"}
           </div>
         </div>
         
@@ -628,7 +653,7 @@ function History({ list }: { list: Sale[] }) {
           <div class="thank-you">Thank You! - Shukriya!</div>
           <div>Your satisfaction is our priority</div>
           <div>Please visit again</div>
-          <div class="powered-by">Powered by DryFruit Pro</div>
+          <div class="powered-by">Powered by ${settings?.companyName || "Chaman Delight"}</div>
         </div>
       </body>
       </html>
@@ -751,8 +776,8 @@ function History({ list }: { list: Sale[] }) {
         {view && (
           <div className="print-area">
             <div className="text-center border-b border-border pb-4">
-              <p className="font-display text-2xl font-bold text-walnut">DryFruit Pro</p>
-              <p className="text-xs text-muted-foreground">Akbari Mandi, Lahore | +92 300 1234567</p>
+            <p className="font-display text-2xl font-bold text-walnut">${settings?.companyName || "Chaman Delight Dry Fruit"}</p>
+            <p className="text-xs text-muted-foreground">${settings?.address || "Billa Chowk Satellite Town Gujranwala"} | +92 ${settings?.phone || "326 5153000"}</p>
             </div>
             <div className="grid grid-cols-2 gap-4 py-4 text-sm">
               <div><p className="text-xs text-muted-foreground">Invoice #</p><p className="font-medium text-walnut">{view.invoice}</p></div>

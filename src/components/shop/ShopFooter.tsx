@@ -8,10 +8,10 @@ export function ShopFooter() {
         <div>
           <div className="flex items-center gap-2 text-[#c8860a]">
             <span className="text-2xl">🌿</span>
-            <span className="font-display text-xl font-bold">DryFruit Pro</span>
+            <span className="font-display text-xl font-bold">Chaman Delight</span>
           </div>
           <p className="mt-3 text-sm text-[#f5e6d0]/70">
-            Premium dry fruits & spices, sourced directly from origin orchards across Pakistan, Iran, and Kashmir.
+            Premium dry fruits & spices, sourced directly from origin orchards across Pakistan.
           </p>
         </div>
 
@@ -27,11 +27,12 @@ export function ShopFooter() {
 
         <div>
           <h4 className="mb-4 font-display text-lg font-semibold text-[#c8860a]">Contact</h4>
-          <ul className="space-y-3 text-sm text-[#f5e6d0]/80">
-            <li className="flex items-center gap-2"><Phone className="h-4 w-4" /> +92 300 1234567</li>
-            <li className="flex items-center gap-2"><Mail className="h-4 w-4" /> hello@dryfruitpro.pk</li>
-            <li className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Lahore, Pakistan</li>
-          </ul>
+          <p className="text-sm text-[#f5e6d0]/60">© 2026 Chaman Delight Dry Fruit</p>
+          <div className="mt-4 space-y-2 text-sm text-[#f5e6d0]/80">
+            <p className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 shrink-0" /> Billa Chowk Satellite Town Gujranwala Pakistan</p>
+            <p className="flex items-center gap-2"><Phone className="h-4 w-4" /> 0326 5153000</p>
+            <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> chamandelightdryfruit@gmail.com</p>
+          </div>
         </div>
 
         <div>
@@ -44,7 +45,7 @@ export function ShopFooter() {
         </div>
       </div>
       <div className="border-t border-white/10 py-4 text-center text-xs text-[#f5e6d0]/60">
-        © 2026 DryFruit Pro. All rights reserved.
+        © 2026 Chaman Delight Dry Fruit. All rights reserved.
       </div>
     </footer>
   );

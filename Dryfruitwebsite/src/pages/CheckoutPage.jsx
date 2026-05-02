@@ -295,7 +295,7 @@ export default function CheckoutPage() {
               </div>
 
               <a
-                href={`https://wa.me/923211234567?text=${generateWhatsAppMessage()}`}
+                href={`https://wa.me/923265153000?text=${generateWhatsAppMessage()}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-4 py-5 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all shadow-2xl shadow-green-200 active:scale-95 text-base uppercase tracking-widest group"

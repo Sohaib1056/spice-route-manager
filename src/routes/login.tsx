@@ -119,7 +119,7 @@ export default function LoginPage() {
               <div className="h-32 w-32 rounded-full bg-white/10 backdrop-blur-sm p-3 shadow-2xl">
                 <img 
                   src="/assets/images/logo.jpg" 
-                  alt="DryFruit Pro" 
+                  alt="Chaman Delight" 
                   className="h-full w-full object-cover rounded-full"
                 />
               </div>
@@ -132,7 +132,7 @@ export default function LoginPage() {
           </div>
 
           {/* Logo & Title */}
-          <h1 className="font-display text-5xl font-bold text-cream mb-2">DryFruit Pro</h1>
+          <h1 className="font-display text-5xl font-bold text-cream mb-2">Chaman Delight</h1>
           
           {/* Urdu Tagline */}
           <p className="text-2xl text-amber-brand font-semibold mb-6" style={{ fontFamily: 'Noto Nastaliq Urdu, serif', direction: 'rtl' }}>
@@ -162,7 +162,7 @@ export default function LoginPage() {
             <div className="flex justify-center mb-3">
               <Logo size="md" variant="default" showText={false} />
             </div>
-            <h1 className="font-display text-3xl font-bold text-walnut mb-1">DryFruit Pro</h1>
+            <h1 className="font-display text-3xl font-bold text-walnut mb-1">Chaman Delight</h1>
             <p className="text-lg text-amber-brand font-semibold" style={{ fontFamily: 'Noto Nastaliq Urdu, serif', direction: 'rtl' }}>
               آپ کا معاملہ، ہمارے ہاتھ میں
             </p>
@@ -262,7 +262,7 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
-            © 2024 DryFruit Pro. All rights reserved.
+            © 2026 Chaman Delight. All rights reserved.
           </p>
         </div>
       </div>

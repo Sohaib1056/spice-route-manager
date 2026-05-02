@@ -7,7 +7,8 @@ export const getStockMovements = async (req: Request, res: Response) => {
     const movements = await StockMovement.find().sort({ date: -1 });
     res.json(movements);
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    console.error("[StockController] Error fetching movements:", error);
+    res.status(500).json({ message: "Server Error", error: error instanceof Error ? error.message : String(error) });
   }
 };
 

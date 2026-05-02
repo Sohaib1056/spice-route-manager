@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { CartProvider } from './context/CartContext';
+import { SettingsProvider } from './context/SettingsContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
@@ -16,26 +17,28 @@ function App() {
 
   return (
     <BrowserRouter>
-      <CartProvider>
-        <div className="min-h-screen bg-cream">
-          <Toaster position="bottom-right" />
-          
-          <Navbar onSearch={setSearchQuery} />
-          
-          <main>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/products" element={<ProductsPage searchQuery={searchQuery} />} />
-              <Route path="/product/:id" element={<ProductDetailPage />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-            </Routes>
-          </main>
-          
-          <Footer />
-          <FloatingWhatsApp />
-        </div>
-      </CartProvider>
+      <SettingsProvider>
+        <CartProvider>
+          <div className="min-h-screen bg-cream">
+            <Toaster position="bottom-right" />
+            
+            <Navbar onSearch={setSearchQuery} />
+            
+            <main>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/products" element={<ProductsPage searchQuery={searchQuery} />} />
+                <Route path="/product/:id" element={<ProductDetailPage />} />
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
+              </Routes>
+            </main>
+            
+            <Footer />
+            <FloatingWhatsApp />
+          </div>
+        </CartProvider>
+      </SettingsProvider>
     </BrowserRouter>
   );
 }

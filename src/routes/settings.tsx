@@ -151,12 +151,14 @@ function CompanyInfo({ settings, onUpdate }: { settings: SettingsData; onUpdate:
     e.preventDefault();
     setSaving(true);
 
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+
     const response = await api.updateCompanyInfo({
       ...formData,
       logo: logo || "",
-      currentUserId: "admin-id",
-      currentUserName: "Admin",
-      currentUserRole: "Admin",
+      currentUserId: user.id || "admin-id",
+      currentUserName: user.name || "Admin",
+      currentUserRole: user.role || "Admin",
     });
 
     if (response.success) {

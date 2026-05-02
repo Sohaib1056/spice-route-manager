@@ -347,6 +347,7 @@ function ReceiveOrderModal({ open, purchase, onClose, onReceive }: { open: boole
 // --- Main Component ---
 
 export default function PurchasePage() {
+  const { settings } = useSettings();
   const [searchParams, setSearchParams] = useSearchParams();
   const [list, setList] = useState<Purchase[]>(store.getPurchases());
   const [products, setProducts] = useState<Product[]>(store.getProducts());
@@ -465,24 +466,36 @@ export default function PurchasePage() {
     // Header
     doc.setFontSize(22);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("PURCHASE ORDER", 14, 20);
+    doc.text(settings?.companyName?.toUpperCase() || "PURCHASE ORDER", 14, 20);
     
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`PO Number: ${p.po}`, 14, 28);
-    doc.text(`Date: ${formatDate(p.date)}`, 14, 33);
-    doc.text(`Status: ${p.status}`, 14, 38);
+    doc.text(`${settings?.address || ""}`, 14, 28);
+    doc.text(`Tel: ${settings?.phone || ""} | Email: ${settings?.email || ""}`, 14, 33);
+    
+    doc.line(14, 38, 196, 38); // Separator
+
+    doc.setFontSize(11);
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+    doc.text("PURCHASE ORDER", 14, 48);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`PO Number: ${p.po}`, 14, 54);
+    doc.text(`Date: ${formatDate(p.date)}`, 14, 59);
+    doc.text(`Status: ${p.status}`, 14, 64);
     
     // Supplier Info
     doc.setFontSize(12);
-    doc.setTextColor(0);
-    doc.text("SUPPLIER:", 14, 50);
+    doc.setFont("helvetica", "bold");
+    doc.text("SUPPLIER:", 140, 48);
     doc.setFontSize(11);
-    doc.text(p.supplierName, 14, 56);
+    doc.setFont("helvetica", "normal");
+    doc.text(p.supplierName, 140, 54);
     
     // Items Table
     autoTable(doc, {
-      startY: 65,
+      startY: 75,
       head: [["Item", "Quantity", "Price", "Total"]],
       body: p.items.map(it => [
         it.name,
@@ -509,7 +522,7 @@ export default function PurchasePage() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(150);
-    doc.text("Spice Route Manager - Generated on " + new Date().toLocaleString(), 14, doc.internal.pageSize.height - 10);
+    doc.text(`${settings?.companyName || "Chaman Delight Dry Fruit"} - Generated on ` + new Date().toLocaleString(), 14, doc.internal.pageSize.height - 10);
     
     doc.save(`${p.po}.pdf`);
     toast.success("Purchase order downloaded");
@@ -613,6 +626,11 @@ export default function PurchasePage() {
       <Modal open={!!view} onClose={() => setView(null)} title={`Purchase Order - ${view?.po ?? ""}`} size="xl">
         {view && (
           <div className="space-y-4">
+            <div className="text-center border-b border-border pb-4">
+              <p className="font-display text-2xl font-bold text-walnut">{settings?.companyName || "Chaman Delight Dry Fruit"}</p>
+              <p className="text-xs text-muted-foreground">{settings?.address || "Billa Chowk Satellite Town Gujranwala"} | Tel: {settings?.phone || "0326 5153000"}</p>
+              <p className="text-xs text-muted-foreground">{settings?.email || "chamandelightdryfruit@gmail.com"}</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div><p className="text-xs text-muted-foreground">Supplier</p><p className="font-medium text-walnut">{view.supplierName}</p></div>
               <div><p className="text-xs text-muted-foreground">Date</p><p className="font-medium text-walnut">{formatDate(view.date)}</p></div>

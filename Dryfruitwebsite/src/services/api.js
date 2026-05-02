@@ -34,4 +34,16 @@ export const productStats = {
   }
 };
 
+export const settingsApi = {
+  get: async () => {
+    try {
+      const response = await api.get('/settings');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      throw error;
+    }
+  }
+};
+
 export default api;

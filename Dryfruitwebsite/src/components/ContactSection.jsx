@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useWebsiteSettings } from '../context/SettingsContext';
 
 export default function ContactSection() {
+  const { settings } = useWebsiteSettings();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -18,7 +20,7 @@ export default function ContactSection() {
     
     // Create WhatsApp message from form
     const message = `Assalam o Alaikum!\n\nNaam: ${formData.name}\nPhone: ${formData.phone}\nMessage: ${formData.message}`;
-    const whatsappUrl = `https://wa.me/923211234567?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://wa.me/92${settings.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
     
     toast.custom((t) => (
@@ -44,22 +46,22 @@ export default function ContactSection() {
     {
       icon: Phone,
       label: 'Phone / WhatsApp',
-      value: '0321-1234567',
-      action: 'tel:+923211234567',
+      value: settings.phone,
+      action: `tel:+92${settings.phone.replace(/\s+/g, '')}`,
       highlight: true
     },
     {
       icon: MapPin,
       label: 'Address',
-      value: 'Shop 42, Johar Town Market, Lahore',
+      value: settings.address,
       action: null,
       highlight: false
     },
     {
       icon: Mail,
       label: 'Email',
-      value: 'info@dryfruitpro.com',
-      action: 'mailto:info@dryfruitpro.com',
+      value: settings.email,
+      action: `mailto:${settings.email}`,
       highlight: false
     },
     {
@@ -113,7 +115,7 @@ export default function ContactSection() {
                 </div>
                 {info.highlight && (
                   <a
-                    href={`https://wa.me/923211234567`}
+                    href={`https://wa.me/92${settings.phone.replace(/\s+/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 bg-whatsapp text-white font-semibold rounded-xl hover:bg-green-600 transition-colors duration-200 text-sm"

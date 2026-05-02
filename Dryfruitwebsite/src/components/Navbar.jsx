@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, Menu, X, Phone } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useWebsiteSettings } from '../context/SettingsContext';
 
 export default function Navbar({ onSearch }) {
+  const { settings } = useWebsiteSettings();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,8 +87,8 @@ export default function Navbar({ onSearch }) {
               <span className="text-white text-xl">🥜</span>
             </div>
             <div>
-              <span className="text-xl font-bold text-primary block leading-tight">DryFruit Pro</span>
-              <span className="text-[10px] text-text-gray hidden sm:block">Premium Quality</span>
+              <span className="text-xl font-bold text-primary block leading-tight">{settings.companyName}</span>
+              <span className="text-[10px] text-text-gray hidden sm:block">Dry Fruit & Spices</span>
             </div>
           </Link>
 

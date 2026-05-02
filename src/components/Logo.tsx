@@ -54,11 +54,11 @@ export function Logo({
       {!iconOnly && (
         <div>
           <p className={`font-display font-bold leading-none ${s.text} ${isWhite ? "text-cream" : "text-amber-brand"}`}>
-            DryFruit Pro
+            Chaman Delight
           </p>
           {size === "lg" && (
             <p className={`text-[10px] mt-1 tracking-wide ${isWhite ? "text-cream/70" : "text-muted-foreground"}`}>
-              WHOLESALE & RETAIL
+              DRY FRUIT & SPICES
             </p>
           )}
         </div>
