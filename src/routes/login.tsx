@@ -116,17 +116,12 @@ export default function LoginPage() {
           {/* Hand-crafted Dry Fruit Logo */}
           <div className="mb-8 flex justify-center">
             <div className="relative">
-              <div className="h-32 w-32 rounded-full bg-white/10 backdrop-blur-sm p-3 shadow-2xl">
+              <div className="h-60 w-60 flex items-center justify-center">
                 <img 
-                  src="/assets/images/logo.jpg" 
+                  src="/chaman_delight_no_bg.png" 
                   alt="Chaman Delight" 
-                  className="h-full w-full object-cover rounded-full"
+                  className="h-full w-full object-contain brightness-110 contrast-125 drop-shadow-2xl animate-fade-in"
                 />
-              </div>
-              <div className="absolute -bottom-2 -right-2 h-12 w-12 rounded-full bg-amber-brand flex items-center justify-center shadow-lg">
-                <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
               </div>
             </div>
           </div>
@@ -160,7 +155,9 @@ export default function LoginPage() {
           {/* Mobile Logo */}
           <div className="lg:hidden mb-8 text-center">
             <div className="flex justify-center mb-3">
-              <Logo size="md" variant="default" showText={false} />
+              <div className="relative h-12 w-12 flex items-center justify-center">
+                <img src="/chaman_delight_no_bg.png" alt="Chaman Delight Logo" className="h-full w-full object-contain brightness-110 contrast-125" />
+              </div>
             </div>
             <h1 className="font-display text-3xl font-bold text-walnut mb-1">Chaman Delight</h1>
             <p className="text-lg text-amber-brand font-semibold" style={{ fontFamily: 'Noto Nastaliq Urdu, serif', direction: 'rtl' }}>

@@ -17,15 +17,27 @@ export function ShopNavbar() {
   const [mobile, setMobile] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-[#2d1200] text-[#f5e6d0] shadow-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:px-8">
-        <Link to="/" className="flex items-center gap-2 text-lg font-bold text-[#c8860a]" onClick={() => setMobile(false)}>
-          <Nut className="h-6 w-6 text-amber-600" />
-          <span className="text-xl font-bold bg-gradient-to-r from-amber-700 to-walnut bg-clip-text text-transparent">
-            Chaman Delight
-          </span>
+    <header className="sticky top-0 z-40 bg-[#2d1200] text-[#f5e6d0] shadow-md border-b border-amber-900/30">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-8">
+        <Link to="/" className="flex items-center gap-4 transition-transform hover:scale-105" onClick={() => setMobile(false)}>
+          <div className="relative h-20 w-20 flex items-center justify-center">
+            <img 
+              src="/chaman_delight_no_bg.png" 
+              alt="Chaman Delight Logo" 
+              className="h-full w-full object-contain brightness-110 contrast-125 drop-shadow-md"
+              onError={(e) => {
+                e.currentTarget.src = "https://i.ibb.co/v4rN8y0/chaman-delight-no-bg.png";
+              }}
+            />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-3xl font-black leading-none tracking-tight bg-gradient-to-r from-amber-400 via-amber-200 to-amber-500 bg-clip-text text-transparent drop-shadow-sm">
+              Chaman Delight
+            </span>
+            <span className="text-[14px] font-bold uppercase tracking-[0.2em] text-amber-500/80 mt-1">Premium Dry Fruit</span>
+          </div>
         </Link>
-
+        
         <nav className="hidden md:flex items-center gap-8">
           {links.map((l) => {
             const active = pathname === l.to;

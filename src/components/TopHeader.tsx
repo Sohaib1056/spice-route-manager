@@ -58,25 +58,17 @@ export function TopHeader({ title, onMenu }: { title: string; onMenu: () => void
           <Menu className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-2 min-w-0">
-          <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg bg-white overflow-hidden shadow-sm">
-            {settings?.logo ? (
-              <img 
-                src={settings.logo} 
-                alt={settings.companyName} 
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <img 
-                src="/assets/images/logo.jpg" 
-                alt="Logo" 
-                className="h-full w-full object-cover"
-              />
-            )}
+          <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-lg bg-transparent overflow-hidden">
+            <img 
+              src="/chaman_delight_no_bg.png" 
+              alt={settings?.companyName || "Chaman Delight"} 
+              className="h-full w-full object-contain brightness-105 contrast-110"
+            />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl md:text-2xl font-display font-semibold text-walnut truncate">{title}</h1>
             <p className="text-xs text-muted-foreground hidden sm:block">
-              {settings?.companyName || "Spice Route Manager"}
+              {settings?.companyName || "Chaman Delight Dry Fruit"}
             </p>
           </div>
         </div>

@@ -167,9 +167,10 @@ function NewSale({ onComplete, products }: { onComplete: (s: Omit<Sale, "id">) =
       </head>
       <body>
         <div class="header">
-          <div class="logo-area">
-            <div class="logo-text">${settings?.companyName || "CHAMAN DELIGHT"}</div>
-            <span class="tagline">Premium Dry Fruit & Spices</span>
+          <div class="logo-area" style="display: flex; flex-direction: column; align-items: center; gap: 2mm;">
+            <img src="/chaman_delight_no_bg.png" style="height: 15mm; width: 15mm; object-fit: contain;" />
+            <div class="logo-text" style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">${settings?.companyName || "CHAMAN DELIGHT"}</div>
+            <span class="tagline" style="font-size: 9px; font-weight: 700; color: #333; margin-top: -1mm;">PREMIUM DRY FRUIT & SPICES</span>
           </div>
           <div class="contact-info">
             ${settings?.address || "Billa Chowk Satellite Town Gujranwala"}<br/>

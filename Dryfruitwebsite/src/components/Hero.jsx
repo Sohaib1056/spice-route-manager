@@ -44,7 +44,7 @@ export default function Hero() {
                 Abhi Order Karein
               </Link>
               <a
-                href="https://wa.me/923211234567?text=Assalam%20o%20Alaikum!%20Mujhe%20dry%20fruits%20order%20karne%20hain"
+                href="https://wa.me/923265153000?text=Assalam%20o%20Alaikum!%20Mujhe%20dry%20fruits%20order%20karne%20hain"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-whatsapp text-white font-bold rounded-xl hover:bg-green-600 transition-all duration-200 shadow-lg shadow-whatsapp/20 text-lg"

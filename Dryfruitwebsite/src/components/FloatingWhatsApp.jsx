@@ -6,7 +6,7 @@ export default function FloatingWhatsApp() {
   const { settings } = useWebsiteSettings();
   const [isOpen, setIsOpen] = useState(false);
 
-  const whatsappNumber = `92${settings.phone.replace(/\s+/g, '')}`;
+  const whatsappNumber = "923265153000";
 
   return (
     <div className="fixed bottom-6 right-6 z-50">

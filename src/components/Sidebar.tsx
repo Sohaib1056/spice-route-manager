@@ -110,7 +110,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 scrollbar-hide">
           {groups.map((group) => {
             // Filter items based on admin status AND permissions
             const items = group.items.filter((i) => {

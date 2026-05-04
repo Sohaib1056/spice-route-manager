@@ -82,13 +82,22 @@ export default function Navbar({ onSearch }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent-gold rounded-xl flex items-center justify-center">
-              <span className="text-white text-xl">🥜</span>
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="relative w-16 h-16 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+              <img 
+                src="/chaman_delight_no_bg.png" 
+                alt="Chaman Delight Logo" 
+                className="w-full h-full object-contain brightness-105 contrast-110 drop-shadow-md" 
+                onError={(e) => {
+                  e.currentTarget.src = "https://i.ibb.co/v4rN8y0/chaman-delight-no-bg.png";
+                }}
+              />
             </div>
-            <div>
-              <span className="text-xl font-bold text-primary block leading-tight">{settings.companyName}</span>
-              <span className="text-[10px] text-text-gray hidden sm:block">Dry Fruit & Spices</span>
+            <div className="flex flex-col">
+              <span className="text-3xl font-black bg-gradient-to-r from-primary to-accent-gold bg-clip-text text-transparent leading-none tracking-tight">
+                {settings.companyName}
+              </span>
+              <span className="text-[13px] font-bold uppercase tracking-[0.2em] text-text-gray mt-1">Premium Dry Fruit</span>
             </div>
           </Link>
 
@@ -149,8 +158,17 @@ export default function Navbar({ onSearch }) {
             </Link>
           </div>
 
-          {/* Mobile Controls */}
           <div className="flex md:hidden items-center gap-2">
+            <div className="h-12 w-12 flex items-center justify-center mr-1">
+              <img 
+                src="/chaman_delight_no_bg.png" 
+                alt="Logo" 
+                className="h-full w-full object-contain brightness-110" 
+                onError={(e) => {
+                  e.currentTarget.src = "https://i.ibb.co/v4rN8y0/chaman-delight-no-bg.png";
+                }}
+              />
+            </div>
             <button
               onClick={() => setIsSearchOpen(!isSearchOpen)}
               className="p-2.5 rounded-xl hover:bg-primary-light transition-colors duration-200"

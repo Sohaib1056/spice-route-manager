@@ -6,8 +6,8 @@ const connectDB = async (): Promise<void> => {
       maxPoolSize: 10,
       minPoolSize: 5,
       socketTimeoutMS: 45000,
-      serverSelectionTimeoutMS: 5000,
-      family: 4, // Use IPv4, skip trying IPv6
+      serverSelectionTimeoutMS: 15000, // Increased timeout for Atlas
+      family: 4, 
     };
 
     const conn = await mongoose.connect(

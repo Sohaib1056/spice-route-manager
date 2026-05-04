@@ -27,9 +27,9 @@ export function Logo({
   className = "" 
 }: LogoProps) {
   const sizes = {
-    sm: { container: "h-8 w-8", text: "text-base", icon: "h-4 w-4" },
-    md: { container: "h-10 w-10", text: "text-lg", icon: "h-5 w-5" },
-    lg: { container: "h-16 w-16", text: "text-2xl", icon: "h-8 w-8" },
+    sm: { container: "h-10 w-10", text: "text-base", icon: "h-5 w-5" },
+    md: { container: "h-14 w-14", text: "text-xl", icon: "h-7 w-7" },
+    lg: { container: "h-24 w-24", text: "text-3xl", icon: "h-12 w-12" },
   };
 
   const s = sizes[size];
@@ -37,30 +37,28 @@ export function Logo({
   const iconOnly = variant === "icon-only" || !showText;
 
   // Try to use custom logo image, fallback to icon
-  const logoPath = "/assets/images/logo.jpg";
+  const logoPath = "/chaman_delight_no_bg.png";
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       {/* Logo Image */}
-      <div className={`flex ${s.container} items-center justify-center rounded-lg bg-white overflow-hidden shadow-sm`}>
+      <div className={`flex ${s.container} items-center justify-center overflow-hidden`}>
         <img 
           src={logoPath} 
-          alt="DryFruit Pro" 
-          className="h-full w-full object-cover"
+          alt="Chaman Delight Logo" 
+          className="h-full w-full object-contain brightness-105 contrast-110"
         />
       </div>
 
       {/* Company Name */}
       {!iconOnly && (
-        <div>
-          <p className={`font-display font-bold leading-none ${s.text} ${isWhite ? "text-cream" : "text-amber-brand"}`}>
+        <div className="flex flex-col">
+          <p className={`font-display font-black leading-none tracking-tight ${s.text} ${isWhite ? "text-cream" : "text-amber-brand"} drop-shadow-sm`}>
             Chaman Delight
           </p>
-          {size === "lg" && (
-            <p className={`text-[10px] mt-1 tracking-wide ${isWhite ? "text-cream/70" : "text-muted-foreground"}`}>
-              DRY FRUIT & SPICES
-            </p>
-          )}
+          <p className={`text-[9px] font-bold uppercase tracking-[0.2em] mt-1 ${isWhite ? "text-cream/70" : "text-amber-brand/80"}`}>
+            Premium Dry Fruit
+          </p>
         </div>
       )}
     </div>

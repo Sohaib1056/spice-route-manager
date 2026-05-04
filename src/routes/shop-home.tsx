@@ -36,10 +36,12 @@ export default function ShopHome() {
               Shop Now <ArrowRight className="h-4 w-4" />
             </Link>
             <a
-              href="#categories"
+              href="https://wa.me/923265153000?text=Salam Chaman Delight! I want to order some dry fruits."
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-lg border-2 border-[#c8860a] px-6 py-3 font-semibold text-[#c8860a] transition hover:bg-[#c8860a] hover:text-[#1a0a00]"
             >
-              View Categories
+              WhatsApp Order
             </a>
           </div>
         </div>
