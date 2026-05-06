@@ -184,7 +184,7 @@ export default function FinancePage() {
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState({ type: "All", category: "All", from: "", to: "" });
   const [loading, setLoading] = useState(true);
-  const [totals, setTotals] = useState({ income: 0, expense: 0, profit: 0, cash: 0 });
+  const [totalsData, setTotalsData] = useState({ income: 0, expense: 0, profit: 0, cash: 0 });
   const [metrics, setMetrics] = useState({ todaySales: 0, todayProfit: 0, totalStockValuePurchase: 0, totalStockValueSell: 0, totalRevenue: 0, totalExpenses: 0, netProfit: 0, cashInHand: 0 });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [expenseBreakdown, setExpenseBreakdown] = useState<any[]>([]);
@@ -201,15 +201,20 @@ export default function FinancePage() {
     fetchMetrics();
 
     // Refresh data on window focus
-    window.addEventListener('focus', () => {
+    const handleFocus = () => {
       fetchTransactions();
       fetchStats();
       fetchMonthlyData();
       fetchExpenseBreakdown();
       fetchMetrics();
-    });
-    return () => window.removeEventListener('focus', () => {});
-  }, [filter, range]);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [range]); // Removed 'filter' to avoid double calls when range changes, and ensure range triggers stats refresh
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [filter]); // Separate effect for transactions table filters
 
   const fetchMetrics = async () => {
     const data = await store.getFinancialMetrics();
@@ -219,7 +224,8 @@ export default function FinancePage() {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      const response = await api.getFinanceTransactions(filter);
+      // Pass the range to the backend to get filtered transactions
+      const response = await api.getFinanceTransactions({ ...filter, range });
       if (response.success && response.data) {
         setList(response.data as FinanceTxn[]);
       } else {
@@ -236,7 +242,18 @@ export default function FinancePage() {
   const fetchStats = async () => {
     const response = await api.getFinanceStats(range);
     if (response.success && response.data) {
-      setTotals(response.data as any);
+      const data = response.data as any;
+      setTotalsData(data);
+      // Synchronize all-time metrics if range is "All Time"
+      if (range === "All Time") {
+        setMetrics(prev => ({
+          ...prev,
+          totalRevenue: data.income,
+          totalExpenses: data.expense,
+          netProfit: data.profit,
+          cashInHand: data.cash
+        }));
+      }
     }
   };
 
@@ -297,40 +314,124 @@ export default function FinancePage() {
     }
   };
 
-  const filtered = list.filter((t) =>
-    (filter.type === "All" || t.type === filter.type) &&
-    (filter.category === "All" || t.category === filter.category) &&
-    (!filter.from || new Date(t.date) >= new Date(filter.from)) &&
-    (!filter.to || new Date(t.date) <= new Date(filter.to))
-  );
+  const filtered = useMemo(() => {
+    return list.filter((t) =>
+      (filter.type === "All" || t.type === filter.type) &&
+      (filter.category === "All" || t.category === filter.category) &&
+      (!filter.from || new Date(t.date) >= new Date(filter.from)) &&
+      (!filter.to || new Date(t.date) <= new Date(filter.to))
+    );
+  }, [list, filter]);
+
+  const totals = useMemo(() => {
+    return {
+      income: totalsData.income,
+      expense: totalsData.expense,
+      profit: totalsData.profit,
+      cash: totalsData.cash
+    };
+  }, [totalsData]);
+
+  // Use range-specific metrics for the first row of cards
+  const currentMetrics = useMemo(() => {
+    if (range === "Today") {
+      return {
+        sales: metrics.todaySales,
+        profit: metrics.todayProfit
+      };
+    }
+    if (range === "All Time") {
+      return {
+        sales: metrics.totalRevenue,
+        profit: metrics.netProfit
+      };
+    }
+    return {
+      sales: totals.income,
+      profit: totals.profit
+    };
+  }, [totals, range, metrics.todaySales, metrics.todayProfit, metrics.totalRevenue, metrics.netProfit]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Track income, expenses, and profitability.</p>
-        <select
-          value={range}
-          onChange={(e) => setRange(e.target.value)}
-          className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
-        >
-          <option>This Week</option>
-          <option>This Month</option>
-          <option>This Year</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Range:</span>
+          <select
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-walnut shadow-sm focus:ring-2 focus:ring-amber-brand/20 transition-all"
+          >
+            <option>Today</option>
+            <option>This Week</option>
+            <option>This Month</option>
+            <option>This Year</option>
+            <option>All Time</option>
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Today's Sales" value={formatPKR(metrics.todaySales)} tone="amber" icon={<TrendingUp className="h-5 w-5" />} />
-        <StatCard label="Today's Profit" value={formatPKR(metrics.todayProfit)} tone="success" icon={<TrendingUp className="h-5 w-5" />} />
-        <StatCard label="Stock Value (Cost)" value={formatPKR(metrics.totalStockValuePurchase)} tone="walnut" icon={<Wallet className="h-5 w-5" />} />
-        <StatCard label="Stock Value (Sell)" value={formatPKR(metrics.totalStockValueSell)} tone="info" icon={<DollarSign className="h-5 w-5" />} />
+        <StatCard 
+          label={`Sales (${range})`} 
+          value={formatPKR(currentMetrics.sales)} 
+          tone="amber" 
+          icon={<TrendingUp className="h-5 w-5" />} 
+          sub={`${range} sales revenue`}
+        />
+        <StatCard 
+          label={`Profit (${range})`} 
+          value={formatPKR(currentMetrics.profit)} 
+          tone={currentMetrics.profit >= 0 ? "success" : "danger"} 
+          icon={<TrendingUp className="h-5 w-5" />} 
+          sub={`${range} net margin`}
+        />
+        <StatCard 
+          label="Stock Value (Cost)" 
+          value={formatPKR(metrics.totalStockValuePurchase)} 
+          tone="walnut" 
+          icon={<Wallet className="h-5 w-5" />} 
+          sub="Total inventory cost"
+        />
+        <StatCard 
+          label="Stock Value (Sell)" 
+          value={formatPKR(metrics.totalStockValueSell)} 
+          tone="info" 
+          icon={<DollarSign className="h-5 w-5" />} 
+          sub="Potential retail value"
+        />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Revenue" value={formatPKR(metrics.totalRevenue)} tone="success" icon={<TrendingUp className="h-5 w-5" />} />
-        <StatCard label="Total Expenses" value={formatPKR(metrics.totalExpenses)} tone="danger" icon={<TrendingDown className="h-5 w-5" />} />
-        <StatCard label="Net Profit" value={formatPKR(metrics.netProfit)} tone={metrics.netProfit >= 0 ? "success" : "danger"} icon={<DollarSign className="h-5 w-5" />} />
-        <StatCard label="Cash in Hand" value={formatPKR(metrics.cashInHand)} tone="info" icon={<Wallet className="h-5 w-5" />} />
+        <StatCard 
+          label={`Total Revenue (${range})`} 
+          value={formatPKR(totals.income)} 
+          tone="success" 
+          icon={<TrendingUp className="h-5 w-5" />} 
+          sub={`${range} gross sales`}
+        />
+        <StatCard 
+          label={`Total Expenses (${range})`} 
+          value={formatPKR(totals.expense)} 
+          tone="danger" 
+          icon={<TrendingDown className="h-5 w-5" />} 
+          sub={`${range} business costs`}
+        />
+        <StatCard 
+          label={`Net Profit (${range})`} 
+          value={formatPKR(totals.profit)} 
+          tone={totals.profit >= 0 ? "success" : "danger"} 
+          icon={<DollarSign className="h-5 w-5" />} 
+          sub={`${range} overall profit`}
+        />
+        <StatCard 
+          label="Cash in Hand" 
+          value={formatPKR(totals.cash)} 
+          tone="info" 
+          icon={<Wallet className="h-5 w-5" />} 
+          sub="Current available balance"
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

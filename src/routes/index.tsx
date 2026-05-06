@@ -23,18 +23,25 @@ import { StatCard } from "@/components/StatCard";
 import { Pill } from "@/components/Pill";
 import { formatPKR, formatDate } from "@/lib/format";
 import { store, type DashboardData } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(store.getDashboard());
-  const [metrics, setMetrics] = useState({ todaySales: 0, todayProfit: 0 });
+  const [metrics, setMetrics] = useState({ 
+    todaySales: 0, 
+    todayProfit: 0, 
+    todayShipping: 0,
+    todayItemRevenue: 0 
+  });
 
   useEffect(() => {
-    setData(store.getDashboard());
     const fetchMetrics = async () => {
       const financialMetrics = await store.getFinancialMetrics();
       setMetrics({
         todaySales: financialMetrics.todaySales,
         todayProfit: financialMetrics.todayProfit,
+        todayShipping: financialMetrics.todayShipping,
+        todayItemRevenue: financialMetrics.todayItemRevenue
       });
       setData(store.getDashboard());
     };
@@ -103,12 +110,18 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard 
           label="Today's Sales" 
           value={formatPKR(metrics.todaySales)} 
-          tone="amber" 
+          tone="walnut" 
           icon={<ShoppingCart className="h-5 w-5" />}
+        />
+        <StatCard 
+          label="Today's Item Sales" 
+          value={formatPKR(metrics.todayItemRevenue)} 
+          tone="amber" 
+          icon={<Package className="h-5 w-5" />}
         />
         <StatCard 
           label="Today's Profit" 
@@ -117,14 +130,17 @@ export default function DashboardPage() {
           icon={<TrendingUp className="h-5 w-5" />}
         />
         <StatCard 
+          label="Today's Shipping" 
+          value={formatPKR(metrics.todayShipping)} 
+          tone="info" 
+          icon={<Package className="h-5 w-5" />}
+        />
+        <StatCard 
           label="Total Revenue" 
           value={formatPKR(stats.revenue)} 
           tone="walnut" 
           icon={<DollarSign className="h-5 w-5" />}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard 
           label="Total Orders" 
           value={stats.orders} 
@@ -177,7 +193,17 @@ export default function DashboardPage() {
             {recentSales.map((s) => (
               <div key={s.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
                 <div>
-                  <p className="text-sm font-medium text-walnut">{s.customer}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-walnut">{s.customer}</p>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tight",
+                      s.type === 'Website' 
+                        ? "bg-blue-100 text-blue-700 border border-blue-200" 
+                        : "bg-pistachio/20 text-pistachio-dark border border-pistachio/30"
+                    )}>
+                      {s.type}
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground">{formatDate(s.date)}</p>
                 </div>
                 <div className="text-right">
@@ -195,6 +221,60 @@ export default function DashboardPage() {
 
       {/* New Charts Section */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* POS vs Website Orders Comparison Chart */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-display text-lg font-semibold text-walnut">POS vs Website Sales</h3>
+              <p className="text-xs text-muted-foreground mt-1">Last 7 days revenue comparison</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-pistachio"></div>
+                <span className="text-xs text-muted-foreground">POS</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span className="text-xs text-muted-foreground">Website</span>
+              </div>
+            </div>
+          </div>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="var(--color-muted-foreground)" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false}
+                  tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
+                />
+                <YAxis 
+                  stroke="var(--color-muted-foreground)" 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(v) => `${v/1000}k`}
+                />
+                <Tooltip 
+                  formatter={(v) => formatPKR(Number(v))}
+                  labelFormatter={(label) => formatDate(label)}
+                  contentStyle={{ 
+                    background: "var(--color-card)", 
+                    border: "1px solid var(--color-border)", 
+                    borderRadius: 8 
+                  }}
+                />
+                <Legend />
+                <Bar name="POS Sales" dataKey="posRevenue" fill="var(--color-pistachio)" radius={[4, 4, 0, 0]} />
+                <Bar name="Website Sales" dataKey="websiteRevenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         {/* Purchase vs Sales Comparison Chart */}
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">

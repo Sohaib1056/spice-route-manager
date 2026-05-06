@@ -3,13 +3,16 @@ import mongoose from "mongoose";
 const connectDB = async (): Promise<void> => {
   try {
     const options = {
-      maxPoolSize: 10,
-      minPoolSize: 5,
-      socketTimeoutMS: 45000,
-      serverSelectionTimeoutMS: 15000, // Increased timeout for Atlas
+      maxPoolSize: 50, // Increased for scalability
+      minPoolSize: 10, // Maintain minimum active connections
+      socketTimeoutMS: 60000, // Increase socket timeout
+      serverSelectionTimeoutMS: 30000, // More time for Atlas cluster selection
+      heartbeatFrequencyMS: 10000, // Keep-alive heartbeats
+      connectTimeoutMS: 30000,
       family: 4, 
     };
 
+    console.log("Attempting to connect to MongoDB Atlas...");
     const conn = await mongoose.connect(
       process.env.MONGO_URI || "mongodb://localhost:27017/spice-route",
       options

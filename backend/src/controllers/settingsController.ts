@@ -320,7 +320,17 @@ export const resetAllData = asyncHandler(async (req: Request, res: Response): Pr
     "This action deleted all data from the system"
   );
 
-  // In a real application, this would delete all data from all collections
-  // For safety, we'll just return a success message
-  sendSuccess(res, null, "Data reset completed (demo mode - no actual data was deleted)");
+  // Perform actual reset
+  await Promise.all([
+    Product.deleteMany({}),
+    Sale.deleteMany({}),
+    Purchase.deleteMany({}),
+    FinanceTransaction.deleteMany({}),
+    Supplier.deleteMany({}),
+    StockMovement.deleteMany({}),
+    AuditLog.deleteMany({}),
+    // We don't delete Settings or Users to keep the system operational
+  ]);
+
+  sendSuccess(res, null, "Data reset completed successfully");
 });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { AnimatePresence } from 'framer-motion';
 import { CartProvider } from './context/CartContext';
 import { SettingsProvider } from './context/SettingsContext';
 import Navbar from './components/Navbar';
@@ -11,6 +12,22 @@ import ProductsPage from './pages/ProductsPage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
+
+function AnimatedRoutes({ searchQuery }) {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/products" element={<ProductsPage searchQuery={searchQuery} />} />
+        <Route path="/product/:id" element={<ProductDetailPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,14 +41,8 @@ function App() {
             
             <Navbar onSearch={setSearchQuery} />
             
-            <main>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/products" element={<ProductsPage searchQuery={searchQuery} />} />
-                <Route path="/product/:id" element={<ProductDetailPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/checkout" element={<CheckoutPage />} />
-              </Routes>
+            <main className="pt-16 md:pt-20">
+              <AnimatedRoutes searchQuery={searchQuery} />
             </main>
             
             <Footer />

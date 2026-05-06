@@ -82,10 +82,59 @@ button:focus {
   50% { transform: scale(1.05); }
 }
 
+@keyframes kenBurns {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
 
 .animate-pulse-slow {
   animation: pulse 2s infinite;
+}
+
+/* Ken Burns Effect for Hero Slider */
+.ken-burns-effect {
+  animation: kenBurns 4s ease-out forwards;
+}
+
+/* Swiper Custom Styles */
+.hero-swiper .swiper-pagination {
+  bottom: 20px !important;
+}
+
+.hero-swiper .swiper-pagination-bullet {
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+  transition: all 0.3s ease;
+}
+
+.hero-swiper .swiper-pagination-bullet-active-custom {
+  background: var(--color-accent-gold) !important;
+  width: 24px;
+  border-radius: 4px;
+}
+
+/* Navbar link underline animation */
+.nav-link span {
+  transform-origin: left;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .ken-burns-effect {
+    animation: none;
+  }
 }

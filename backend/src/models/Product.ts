@@ -23,22 +23,23 @@ export interface IProduct extends Document {
   shelfLife?: string;
   image?: string;
   discountPercentage?: number;
+  unit?: string;
 }
 
 const ProductSchema: Schema = new Schema({
-  name: { type: String, required: true },
+  name: { type: String, required: true, index: true },
   nameUrdu: { type: String },
-  sku: { type: String, required: true, unique: true },
-  category: { type: String, required: true },
+  sku: { type: String, required: true, unique: true, index: true },
+  category: { type: String, required: true, index: true },
   emoji: { type: String, default: "🥜" },
   buyPrice: { type: Number, required: true },
   sellPrice: { type: Number, required: true },
   pricePerWeight: { type: Map, of: Number, default: {} },
   originalPrice: { type: Map, of: Number, default: {} },
   weightOptions: [{ type: String }],
-  stock: { type: Number, default: 0 },
+  stock: { type: Number, default: 0, index: true },
   minStock: { type: Number, default: 10 },
-  active: { type: Boolean, default: true },
+  active: { type: Boolean, default: true, index: true },
   description: { type: String },
   rating: { type: Number, default: 5.0 },
   reviewCount: { type: Number, default: 0 },
@@ -48,6 +49,7 @@ const ProductSchema: Schema = new Schema({
   shelfLife: { type: String },
   image: { type: String },
   discountPercentage: { type: Number, default: 0 },
+  unit: { type: String, default: "kg" },
 }, { timestamps: true });
 
 export default mongoose.model<IProduct>("Product", ProductSchema);

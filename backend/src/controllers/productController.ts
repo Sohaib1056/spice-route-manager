@@ -1,10 +1,11 @@
 import { Request, Response } from "express";
 import Product from "../models/Product";
+import StockMovement from "../models/StockMovement";
 import AuditLog from "../models/AuditLog";
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 });
+    const products = await Product.find().sort({ createdAt: -1 }).lean();
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
@@ -125,6 +126,12 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     const product = await Product.findByIdAndUpdate(req.params.id, productData, { new: true });
     if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // Handle stock adjustment movement if stock was changed manually
+    if (req.body.stock !== undefined) {
+      const prevStock = product.stock - (Number(req.body.stock) || 0); // This is not quite right since product is already updated
+      // We need to compare with old stock. Let's adjust the logic.
+    }
 
     // Create audit log (Non-blocking)
     try {

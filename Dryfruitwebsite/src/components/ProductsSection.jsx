@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
 import { products, categories } from '../data/products';
 import ProductCard from './ProductCard';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const categoryEmojis = {
   'All': '🛒',
@@ -18,6 +21,12 @@ export default function ProductsSection({ searchQuery, onProductClick }) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [sortBy, setSortBy] = useState('featured');
   const [isSortOpen, setIsSortOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  
+  const [headerRef, headerInView] = useInView({
+    threshold: 0.15,
+    triggerOnce: true
+  });
 
   const sortOptions = [
     { value: 'featured', label: 'Popular' },
@@ -72,21 +81,29 @@ export default function ProductsSection({ searchQuery, onProductClick }) {
     <section id="products" className="bg-cream py-12 md:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-10">
+        <motion.div 
+          ref={headerRef}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 40 }}
+          animate={headerInView && !prefersReducedMotion ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-10"
+        >
           <h2 className="text-3xl md:text-4xl font-bold text-text-dark mb-3">Humare Products</h2>
           <p className="text-text-gray text-lg max-w-2xl mx-auto">
             Premium quality dry fruits aur spices - Direct import kiye gaye best farms se
           </p>
-        </div>
+        </motion.div>
 
         {/* Filters Row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           {/* Category Pills */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             {categories.map((category) => (
-              <button
+              <motion.button
                 key={category}
                 onClick={() => setActiveCategory(category)}
+                whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium whitespace-nowrap transition-all duration-200 ${
                   activeCategory === category
                     ? 'bg-primary text-white shadow-lg shadow-primary/20'
@@ -95,7 +112,7 @@ export default function ProductsSection({ searchQuery, onProductClick }) {
               >
                 <span>{categoryEmojis[category]}</span>
                 {category === 'All' ? 'Sab Dekhein' : category}
-              </button>
+              </motion.button>
             ))}
           </div>
 

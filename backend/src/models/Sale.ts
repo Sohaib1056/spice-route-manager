@@ -23,12 +23,12 @@ export interface ISale extends Document {
 }
 
 const SaleSchema: Schema = new Schema({
-  invoice: { type: String, required: true, unique: true },
-  date: { type: Date, default: Date.now },
-  customer: { type: String, default: "Walk-in Customer" },
-  customerPhone: { type: String },
+  invoice: { type: String, required: true, unique: true, index: true },
+  date: { type: Date, default: Date.now, index: true },
+  customer: { type: String, default: "Walk-in Customer", index: true },
+  customerPhone: { type: String, index: true },
   items: [{
-    productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
+    productId: { type: Schema.Types.ObjectId, ref: "Product", required: true, index: true },
     name: { type: String, required: true },
     qty: { type: Number, required: true },
     price: { type: Number, required: true },
@@ -38,8 +38,8 @@ const SaleSchema: Schema = new Schema({
   discount: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },
   total: { type: Number, required: true },
-  payment: { type: String, enum: ["Cash", "Credit", "Bank Transfer"], default: "Cash" },
-  status: { type: String, enum: ["Paid", "Credit", "Returned"], default: "Paid" },
+  payment: { type: String, enum: ["Cash", "Credit", "Bank Transfer"], default: "Cash", index: true },
+  status: { type: String, enum: ["Paid", "Credit", "Returned"], default: "Paid", index: true },
 }, { timestamps: true });
 
 export default mongoose.model<ISale>("Sale", SaleSchema);

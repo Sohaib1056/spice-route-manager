@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import ProductCard from '../components/ProductCard';
 import { categories } from '../data/products';
 import { Filter, Search, X } from 'lucide-react';
@@ -13,6 +15,7 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
   const [sortBy, setSortBy] = useState('featured');
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -81,7 +84,13 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6 md:py-10">
+    <motion.div 
+      initial={prefersReducedMotion ? {} : { opacity: 0, y: 15 }}
+      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+      exit={prefersReducedMotion ? {} : { opacity: 0, y: -15 }}
+      transition={{ duration: 0.3 }}
+      className="min-h-screen bg-slate-50 py-6 md:py-10"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Top Bar: Search & Page Title */}
@@ -124,9 +133,11 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
               </h3>
               <div className="flex flex-col gap-2">
                 {availableCategories.map((category) => (
-                  <button
+                  <motion.button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
+                    whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+                    whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
                     className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-200 ${
                       selectedCategory === category
                         ? 'bg-slate-900 text-white shadow-lg shadow-slate-200 scale-[1.02]'
@@ -135,7 +146,7 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
                   >
                     {category}
                     {selectedCategory === category && <div className="w-1.5 h-1.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.5)]" />}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -168,32 +179,53 @@ export default function ProductsPage({ searchQuery: externalSearchQuery = '' }) 
           {/* Main Content Area */}
           <div className="flex-1">
             {/* Products Grid */}
-            {sortedProducts.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-                {sortedProducts.map((product) => (
-                  <ProductCard
-                    key={product.id || product._id}
-                    product={product}
-                    onProductClick={() => handleProductClick(product)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-6 h-6 text-slate-300" />
-                </div>
-                <h3 className="text-base font-black text-slate-900 uppercase">
-                  No products found
-                </h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-                  Try adjusting your search or filters.
-                </p>
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {sortedProducts.length > 0 ? (
+                <motion.div 
+                  key={selectedCategory + sortBy}
+                  initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
+                  animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? {} : { opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6"
+                >
+                  {sortedProducts.map((product, index) => (
+                    <motion.div
+                      key={product.id || product._id}
+                      initial={prefersReducedMotion ? {} : { opacity: 0, y: 40 }}
+                      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.08 }}
+                    >
+                      <ProductCard
+                        product={product}
+                        onProductClick={() => handleProductClick(product)}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div 
+                  initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.9 }}
+                  animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+                  exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm"
+                >
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Search className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <h3 className="text-base font-black text-slate-900 uppercase">
+                    No products found
+                  </h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    Try adjusting your search or filters.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

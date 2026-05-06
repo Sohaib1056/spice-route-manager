@@ -18,6 +18,7 @@ import PermissionsPage from "./routes/permissions";
 import NotificationsPage from "./routes/notifications";
 import LowStockPage from "./routes/low-stock";
 import WebsiteOrdersPage from "./routes/website-orders";
+import ReturnsPage from "./routes/returns";
 
 export function App() {
   return (
@@ -171,6 +172,16 @@ export function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <WebsiteOrdersPage />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/returns"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <ReturnsPage />
                 </AppLayout>
               </ProtectedRoute>
             }

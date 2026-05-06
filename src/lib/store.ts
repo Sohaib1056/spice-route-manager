@@ -43,6 +43,7 @@ export interface Sale {
   date: string;
   customer: string;
   customerPhone?: string;
+  type?: 'POS' | 'Website';
   items: Array<{
     productId: string;
     name: string;
@@ -113,6 +114,8 @@ export interface DashboardData {
   chartData: Array<{ date: string; revenue: number }>;
   recentSales: Sale[];
   todaySales: number;
+  todayItemRevenue: number;
+  todayShipping: number;
   todayProfit: number;
   totalStockValuePurchase: number;
   totalStockValueSell: number;
@@ -168,7 +171,8 @@ class DataStore {
         this.suppliers = supp.value.data.map(normalize);
       }
       if (sale.status === "fulfilled") {
-        this.sales = sale.value.data.map(normalize);
+        const saleData = sale.value.data;
+        this.sales = (Array.isArray(saleData) ? saleData : (saleData.data || [])).map(normalize);
       }
       if (pur.status === "fulfilled") {
         this.purchases = pur.value.data.map(normalize);
@@ -220,7 +224,9 @@ class DataStore {
     if (this.dashboard) {
       return {
         todaySales: this.dashboard.todaySales || 0,
+        todayItemRevenue: this.dashboard.todayItemRevenue || 0,
         todayProfit: this.dashboard.todayProfit || 0,
+        todayShipping: this.dashboard.todayShipping || 0,
         totalStockValuePurchase: this.dashboard.totalStockValuePurchase || 0,
         totalStockValueSell: this.dashboard.totalStockValueSell || 0,
         totalRevenue: this.dashboard.stats?.revenue || 0,
@@ -256,7 +262,9 @@ class DataStore {
 
     return {
       todaySales,
+      todayItemRevenue: 0,
       todayProfit,
+      todayShipping: 0,
       totalStockValuePurchase,
       totalStockValueSell,
       totalRevenue: this.sales.reduce((sum, s) => sum + s.total, 0),
@@ -569,7 +577,10 @@ class DataStore {
 
       const [sale, dash] = results;
 
-      if (sale.status === "fulfilled") this.sales = sale.value.data.map(normalize);
+      if (sale.status === "fulfilled") {
+        const saleData = sale.value.data;
+        this.sales = (Array.isArray(saleData) ? saleData : (saleData.data || [])).map(normalize);
+      }
       if (dash.status === "fulfilled") {
         this.dashboard = {
           ...dash.value.data,

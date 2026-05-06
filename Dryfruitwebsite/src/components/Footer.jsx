@@ -1,9 +1,18 @@
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Phone, MapPin, Mail } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useWebsiteSettings } from '../context/SettingsContext';
 
 export default function Footer() {
   const { settings } = useWebsiteSettings();
+  const prefersReducedMotion = useReducedMotion();
+  
+  const [ref, inView] = useInView({
+    threshold: 0.15,
+    triggerOnce: true
+  });
   const quickLinks = [
     { name: 'Home', href: 'home' },
     { name: 'Products', href: '/products', isRoute: true },
@@ -33,7 +42,13 @@ export default function Footer() {
   return (
     <footer className="bg-footer-bg text-white">
       {/* Main Footer */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+      <motion.div 
+        ref={ref}
+        initial={prefersReducedMotion ? {} : { opacity: 0, y: 40 }}
+        animate={inView && !prefersReducedMotion ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6 }}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Column 1 - Brand */}
           <div className="lg:col-span-1">
@@ -60,14 +75,16 @@ export default function Footer() {
             </p>
             <div className="flex gap-3">
               {socialLinks.map((social) => (
-                <a
+                <motion.a
                   key={social.label}
                   href={social.href}
                   aria-label={social.label}
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.1, y: -2 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
                   className="w-10 h-10 rounded-xl bg-footer-border flex items-center justify-center text-footer-link hover:text-white hover:bg-primary transition-all duration-200"
                 >
                   <social.icon className="w-5 h-5" />
-                </a>
+                </motion.a>
               ))}
             </div>
           </div>
@@ -149,7 +166,7 @@ export default function Footer() {
             </ul>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Bottom Bar */}
       <div className="border-t border-footer-border">

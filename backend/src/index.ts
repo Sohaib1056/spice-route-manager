@@ -27,6 +27,7 @@ import reportRoutes from "./routes/reportRoutes";
 import settingsRoutes from "./routes/settingsRoutes";
 import lowStockRoutes from "./routes/lowStockRoutes";
 import websiteOrderRoutes from "./routes/websiteOrderRoutes";
+import returnRoutes from "./routes/returnRoutes";
 
 dotenv.config();
 
@@ -80,6 +81,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/low-stock", lowStockRoutes);
 app.use("/api/website-orders", websiteOrderRoutes);
+app.use("/api/returns", returnRoutes);
 
 app.get("/", (req, res) => {
   res.send("Spice Route Manager API is running...");

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import Hero from '../components/Hero';
 import AboutSection from '../components/AboutSection';
 import ContactSection from '../components/ContactSection';
@@ -11,9 +13,13 @@ export default function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
+    // Only scroll to top if there's no hash in the URL
+    if (!window.location.hash) {
+      window.scrollTo(0, 0);
+    }
     fetchFeaturedProducts();
 
     // Real-time polling: Refresh featured products every 5 seconds
@@ -45,7 +51,12 @@ export default function HomePage() {
   };
 
   return (
-    <>
+    <motion.div
+      initial={prefersReducedMotion ? {} : { opacity: 0, y: 15 }}
+      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+      exit={prefersReducedMotion ? {} : { opacity: 0, y: -15 }}
+      transition={{ duration: 0.3 }}
+    >
       <Hero />
       
       {/* Featured Products Section - Dashboard Style */}
@@ -100,6 +111,6 @@ export default function HomePage() {
 
       <AboutSection />
       <ContactSection />
-    </>
+    </motion.div>
   );
 }

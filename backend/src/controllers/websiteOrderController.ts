@@ -98,9 +98,17 @@ export const getAllWebsiteOrders = async (req: Request, res: Response) => {
 export const getWebsiteOrderById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
-    const order = await WebsiteOrder.findById(id)
-      .populate('items.productId', 'name nameUrdu emoji sku');
+    let order;
+
+    // Check if ID is a MongoDB ObjectId
+    if (typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id)) {
+      order = await WebsiteOrder.findById(id)
+        .populate('items.productId', 'name nameUrdu emoji sku');
+    } else {
+      // Otherwise, search by orderNumber
+      order = await WebsiteOrder.findOne({ orderNumber: id })
+        .populate('items.productId', 'name nameUrdu emoji sku');
+    }
     
     if (!order) {
       return sendError(res, "Order not found", 404);
@@ -109,6 +117,7 @@ export const getWebsiteOrderById = async (req: Request, res: Response) => {
     sendSuccess(res, order, "Order fetched successfully");
     
   } catch (error: any) {
+    console.error("Error in getWebsiteOrderById:", error);
     sendError(res, error.message, 500);
   }
 };
@@ -168,17 +177,47 @@ export const createWebsiteOrder = async (req: Request, res: Response) => {
         const product = await Product.findById(item.productId);
         if (product) {
           const prevStock = product.stock;
-          product.stock -= item.quantity;
+          
+          // Logic: Deduct stock based on selected weight and quantity
+          // selectedWeight is e.g. "500g", "1kg", "250g"
+          let weightInGrams = 0;
+          const weightStr = (item.selectedWeight || "").toString().toLowerCase();
+          
+          if (weightStr.includes('kg')) {
+            // Match any number (including decimals) followed by kg
+            const match = weightStr.match(/(\d+(\.\d+)?)\s*kg/);
+            weightInGrams = match ? parseFloat(match[1]) * 1000 : 1000;
+          } else if (weightStr.includes('g')) {
+            // Match any number followed by g
+            const match = weightStr.match(/(\d+)\s*g/);
+            weightInGrams = match ? parseFloat(match[1]) : 500; // Default to 500 if 'g' is present but no number
+          } else {
+            // Fallback for other units or formats - Check if it's purely a number
+            const purelyNumber = weightStr.match(/(\d+)/);
+            weightInGrams = purelyNumber ? parseFloat(purelyNumber[1]) : 1000;
+          }
+
+          console.log(`[DEBUG] Weight parsing: str="${weightStr}", weightInGrams=${weightInGrams}`);
+
+          // Strictly deduct based on weight (only if product unit is 'kg')
+          let deductionQty = item.quantity;
+          if (product.unit === 'kg') {
+            deductionQty = (weightInGrams / 1000) * item.quantity;
+          }
+
+          console.log(`[DEBUG] Stock deduction: product="${product.name}", stockBefore=${prevStock}, deductionQty=${deductionQty}, unit=${product.unit}`);
+
+          product.stock -= deductionQty;
           await product.save();
 
           await StockMovement.create({
             productId: product._id,
             productName: product.name,
             type: "Out",
-            qty: item.quantity,
+            qty: deductionQty,
             prevStock,
             newStock: product.stock,
-            reason: `Website Order: ${order.orderNumber}`,
+            reason: `Website Order: ${order.orderNumber} (${item.selectedWeight} x ${item.quantity})`,
             doneBy: "System/Website",
             date: new Date()
           });
@@ -192,6 +231,8 @@ export const createWebsiteOrder = async (req: Request, res: Response) => {
     const io = req.app.get('socketio');
     if (io) {
       io.emit('new-website-order', order);
+      // Emit stock update for real-time inventory refresh
+      io.emit('stock-update', { message: 'Stock updated due to new website order' });
     }
     
     // Log audit
@@ -346,7 +387,7 @@ export const deleteWebsiteOrder = async (req: Request, res: Response) => {
       req.user?.id || "unknown",
       "DELETE",
       "WebsiteOrder",
-      id,
+      id as string,
       `Order deleted: ${order.orderNumber}`
     );
     

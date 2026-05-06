@@ -47,6 +47,9 @@ export default function CheckoutPage() {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
 
+  const [orderItemsForWhatsApp, setOrderItemsForWhatsApp] = useState([]);
+  const [orderTotalForWhatsApp, setOrderTotalForWhatsApp] = useState(0);
+
   // Add scroll to top on success
   useEffect(() => {
     if (orderSuccess) {
@@ -116,7 +119,7 @@ export default function CheckoutPage() {
   const shipping = totalPrice >= 5000 ? 0 : 250;
   const grandTotal = totalPrice + shipping;
 
-  const generateWhatsAppMessage = () => {
+  const generateWhatsAppMessage = (orderItems = items, currentTotalPrice = totalPrice) => {
     let message = "*🛍️ NEW ORDER RECEIVED!*\n\n";
     
     message += "*👤 CUSTOMER DETAILS:*\n";
@@ -131,17 +134,24 @@ export default function CheckoutPage() {
     if (formData.postalCode) message += `Postal Code: ${formData.postalCode}\n`;
     
     message += `\n*🛒 ORDER ITEMS:*\n`;
-    items.forEach((item, index) => {
-      message += `${index + 1}. *${item.name}*\n`;
-      message += `   Weight: ${item.selectedWeight}\n`;
-      message += `   Qty: ${item.quantity} × Rs. ${item.price.toLocaleString()}\n`;
-      message += `   Subtotal: Rs. ${(item.price * item.quantity).toLocaleString()}\n\n`;
-    });
+    if (orderItems && orderItems.length > 0) {
+      orderItems.forEach((item, index) => {
+        const weight = item.selectedWeight || item.weight || 'N/A';
+        message += `${index + 1}. *${item.name}* (${weight})\n`;
+        message += `   Qty: ${item.quantity} × Rs. ${item.price.toLocaleString()}\n`;
+        message += `   Subtotal: Rs. ${(item.price * item.quantity).toLocaleString()}\n\n`;
+      });
+    } else {
+      message += "_No items found in order details._\n\n";
+    }
     
+    const currentShipping = currentTotalPrice >= 5000 ? 0 : 250;
+    const currentGrandTotal = currentTotalPrice + currentShipping;
+
     message += `*💰 PAYMENT SUMMARY:*\n`;
-    message += `Subtotal: Rs. ${totalPrice.toLocaleString()}\n`;
-    message += `Delivery: ${shipping === 0 ? 'FREE ✅' : `Rs. ${shipping}`}\n`;
-    message += `*GRAND TOTAL: Rs. ${grandTotal.toLocaleString()}*\n\n`;
+    message += `Subtotal: Rs. ${currentTotalPrice.toLocaleString()}\n`;
+    message += `Delivery: ${currentShipping === 0 ? 'FREE ✅' : `Rs. ${currentShipping.toLocaleString()}`}\n`;
+    message += `*GRAND TOTAL: Rs. ${currentGrandTotal.toLocaleString()}*\n\n`;
     
     message += `*💳 Payment Method:* ${formData.paymentMethod === 'cod' ? '💵 Cash on Delivery' : '💳 Online Payment'}\n`;
     
@@ -198,7 +208,7 @@ export default function CheckoutPage() {
       };
 
       // Save order to backend
-      const response = await fetch('http://localhost:5000/api/website-orders', {
+      const response = await fetch(`${api.defaults.baseURL}/website-orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -210,6 +220,8 @@ export default function CheckoutPage() {
 
       if (result.success) {
         setOrderNumber(result.data.orderNumber);
+        setOrderItemsForWhatsApp([...items]); // Store items for WhatsApp before clearing cart
+        setOrderTotalForWhatsApp(totalPrice); // Store total for WhatsApp before clearing cart
         setOrderSuccess(true);
         clearCart();
         window.scrollTo(0, 0);
@@ -295,7 +307,7 @@ export default function CheckoutPage() {
               </div>
 
               <a
-                href={`https://wa.me/923265153000?text=${generateWhatsAppMessage()}`}
+                href={`https://wa.me/923265153000?text=${generateWhatsAppMessage(orderItemsForWhatsApp, orderTotalForWhatsApp)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-4 py-5 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all shadow-2xl shadow-green-200 active:scale-95 text-base uppercase tracking-widest group"

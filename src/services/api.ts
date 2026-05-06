@@ -249,6 +249,68 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+
+  async getSales(params: any = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/sales?${queryString}`);
+  }
+
+  async getWebsiteOrders(params: any = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/website-orders?${queryString}`);
+  }
+
+  async getWebsiteOrderById(id: string) {
+    return this.request(`/website-orders/${id}`);
+  }
+
+  async getSaleById(id: string) {
+    return this.request(`/sales/${id}`);
+  }
+
+  // Return APIs
+  async getReturns(params: any = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/returns?${queryString}`);
+  }
+
+  async getReturnStats() {
+    return this.request("/returns/stats");
+  }
+
+  async getReturnById(id: string) {
+    return this.request(`/returns/${id}`);
+  }
+
+  async createReturn(data: any) {
+    return this.request("/returns", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async approveReturn(id: string, processedBy: string) {
+    const res = await this.request<any>(`/returns/${id}/approve`, {
+      method: "PATCH",
+      body: JSON.stringify({ processedBy }),
+    });
+    console.log("[ApiService] approveReturn response:", res);
+    return res;
+  }
+
+  async rejectReturn(id: string, data: { rejectionReason: string; processedBy: string }) {
+    return this.request(`/returns/${id}/reject`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async markAsRefunded(id: string, data: { transactionReference: string; processedBy: string }) {
+    return this.request(`/returns/${id}/refunded`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new ApiService();

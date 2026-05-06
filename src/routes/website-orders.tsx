@@ -18,7 +18,8 @@ import {
   Calendar,
   Trash2,
   Edit2,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquare
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -287,6 +288,21 @@ export default function WebsiteOrdersPage() {
     }
   };
 
+  const handleWhatsAppClick = (order: WebsiteOrder) => {
+    const phoneNumber = order.customer.phone.replace(/\D/g, "");
+    const formattedPhone = phoneNumber.startsWith("0") ? "92" + phoneNumber.slice(1) : phoneNumber;
+    
+    const message = `Aslam-o-Alaikum ${order.customer.firstName} ${order.customer.lastName},\n\n` +
+      `Aapke order *#${order.orderNumber}* ki details:\n` +
+      `*Order Status:* ${order.orderStatus}\n` +
+      `*Payment Status:* ${order.paymentStatus}\n` +
+      `*Total Amount:* Rs. ${order.total.toLocaleString()}\n\n` +
+      `Chaman Delight Dry Fruit se shopping karne ka shukriya!`;
+    
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       Pending: "bg-yellow-100 text-yellow-800",
@@ -545,11 +561,24 @@ export default function WebsiteOrdersPage() {
       {/* Order Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Order Details - {selectedOrder?.orderNumber}</DialogTitle>
-            <DialogDescription>
-              Complete order information and management
-            </DialogDescription>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <DialogTitle>Order Details - {selectedOrder?.orderNumber}</DialogTitle>
+              <DialogDescription>
+                Complete order information and management
+              </DialogDescription>
+            </div>
+            {selectedOrder && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-[#25D366] hover:bg-[#128C7E] text-white border-none gap-2"
+                onClick={() => handleWhatsAppClick(selectedOrder)}
+              >
+                <MessageSquare className="h-4 w-4" />
+                WhatsApp
+              </Button>
+            )}
           </DialogHeader>
 
           {selectedOrder && (

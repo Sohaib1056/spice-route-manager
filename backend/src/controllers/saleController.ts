@@ -5,9 +5,37 @@ import StockMovement from "../models/StockMovement";
 
 export const getSales = async (req: Request, res: Response) => {
   try {
-    const sales = await Sale.find().sort({ createdAt: -1 });
-    res.json(sales);
+    const { search, page = 1, limit = 50 } = req.query;
+    const query: any = {};
+
+    if (search) {
+      query.$or = [
+        { invoice: { $regex: search, $options: "i" } },
+        { customer: { $regex: search, $options: "i" } },
+        { customerPhone: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const sales = await Sale.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Sale.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: sales,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        pages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
+    console.error("Error in getSales:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
@@ -89,10 +117,21 @@ export const createSale = async (req: Request, res: Response) => {
 
 export const getSaleById = async (req: Request, res: Response) => {
   try {
-    const sale = await Sale.findById(req.params.id);
+    const { id } = req.params;
+    let sale;
+    
+    // Check if ID is a MongoDB ObjectId
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      sale = await Sale.findById(id);
+    } else {
+      // Otherwise, search by invoice number
+      sale = await Sale.findOne({ invoice: id });
+    }
+
     if (!sale) return res.status(404).json({ message: "Sale not found" });
     res.json(sale);
   } catch (error) {
+    console.error("Error in getSaleById:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };

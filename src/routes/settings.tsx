@@ -508,6 +508,10 @@ function BackupTab({ settings, onUpdate }: { settings: SettingsData; onUpdate: (
     });
     if (response.success) {
       toast.success(response.message || "Data reset completed");
+      // Hard refresh to clear store and navigate to dashboard
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1500);
     } else {
       toast.error(response.message || "Failed to reset data");
     }

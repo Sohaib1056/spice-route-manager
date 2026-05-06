@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { io } from "socket.io-client";
 import { Plus, Pencil, Trash2, Package, AlertTriangle, XCircle, DollarSign, Eye, MapPin, Clock, Info, ShieldCheck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StatCard } from "@/components/StatCard";
@@ -269,6 +270,19 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setList(store.getProducts());
+
+    // Listen for real-time stock updates
+    const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000");
+    
+    socket.on("stock-update", async () => {
+      console.log("[InventoryPage] Stock update received, refreshing data...");
+      await store.init();
+      setList([...store.getProducts()]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const filtered = useMemo(() => {

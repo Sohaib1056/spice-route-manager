@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { X, MessageCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useWebsiteSettings } from '../context/SettingsContext';
 
 export default function FloatingWhatsApp() {
   const { settings } = useWebsiteSettings();
   const [isOpen, setIsOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const whatsappNumber = "923265153000";
 
@@ -21,11 +24,25 @@ export default function FloatingWhatsApp() {
       )}
 
       {/* Floating Button */}
-      <button
+      <motion.button
         onClick={() => setIsOpen(!isOpen)}
+        animate={prefersReducedMotion ? {} : {
+          y: isOpen ? 0 : [0, -6, 0]
+        }}
+        transition={prefersReducedMotion ? {} : {
+          duration: 1.5,
+          repeat: isOpen ? 0 : Infinity,
+          ease: "easeInOut"
+        }}
+        whileHover={prefersReducedMotion ? {} : { 
+          scale: 1.1,
+          boxShadow: '0 0 20px rgba(37, 211, 102, 0.6)'
+        }}
+        whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
         className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 group ${
-          isOpen ? 'bg-slate-900 rotate-90' : 'bg-whatsapp hover:scale-110 active:scale-95'
+          isOpen ? 'bg-slate-900 rotate-90' : 'bg-whatsapp'
         }`}
+        style={{ willChange: 'transform' }}
       >
         {isOpen ? (
           <X className="w-8 h-8 text-white" />
@@ -35,13 +52,30 @@ export default function FloatingWhatsApp() {
         
         {/* Notification Badge */}
         {!isOpen && (
-          <span className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 border-2 border-white rounded-full animate-bounce" />
+          <motion.span 
+            animate={prefersReducedMotion ? {} : {
+              y: [0, -4, 0]
+            }}
+            transition={prefersReducedMotion ? {} : {
+              duration: 1,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 border-2 border-white rounded-full"
+          />
         )}
-      </button>
+      </motion.button>
 
       {/* Chat Window */}
-      {isOpen && (
-        <div className="absolute bottom-20 right-0 w-[320px] bg-white rounded-[2rem] shadow-2xl border border-border overflow-hidden animate-enter">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8, y: 20 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1, y: 0 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute bottom-20 right-0 w-[320px] bg-white rounded-[2rem] shadow-2xl border border-border overflow-hidden"
+          >
           {/* Header */}
           <div className="bg-whatsapp p-6 text-white">
             <div className="flex items-center gap-4">
@@ -69,7 +103,9 @@ export default function FloatingWhatsApp() {
 
           {/* Action */}
           <div className="p-4 bg-white border-t border-slate-100">
-            <a
+            <motion.a
+              whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+              whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
               href={`https://wa.me/${whatsappNumber}?text=Assalam%20o%20Alaikum!%20Mujhe%20dry%20fruits%20ke%20baare%20mein%20puchna%20hai`}
               target="_blank"
               rel="noopener noreferrer"
@@ -77,17 +113,25 @@ export default function FloatingWhatsApp() {
             >
               <MessageCircle className="w-5 h-5 fill-white" />
               Chat Shuru Karein
-            </a>
+            </motion.a>
           </div>
-        </div>
+        </motion.div>
       )}
+    </AnimatePresence>
 
       {/* Label */}
-      {!isOpen && (
-        <div className="absolute bottom-16 right-0 bg-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-medium text-text-dark whitespace-nowrap">
-          Order karein! 👋
-        </div>
-      )}
+      <AnimatePresence>
+        {!isOpen && (
+          <motion.div 
+            initial={prefersReducedMotion ? {} : { opacity: 0, x: 10 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, x: 10 }}
+            className="absolute bottom-16 right-0 bg-white px-3 py-1.5 rounded-lg shadow-lg text-sm font-medium text-text-dark whitespace-nowrap"
+          >
+            Order karein! 👋
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

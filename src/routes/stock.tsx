@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { io } from "socket.io-client";
 import { ArrowDown, ArrowUp, RefreshCw, RotateCcw, X } from "lucide-react";
 import { Pill } from "@/components/Pill";
 import { Modal } from "@/components/Modal";
@@ -233,6 +234,18 @@ export default function StockPage() {
       }
     };
     refreshData();
+
+    // Listen for real-time stock updates
+    const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000");
+    
+    socket.on("stock-update", async () => {
+      console.log("[StockPage] Stock update received, refreshing data...");
+      await refreshData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [tab]);
 
   const handleAdjust = async (qty: number, reason: string) => {

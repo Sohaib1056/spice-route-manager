@@ -1,12 +1,21 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ShoppingCart, Check, Star } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
 import { useCart } from '../context/CartContext';
 import { BASE_URL } from '../services/api';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import toast from 'react-hot-toast';
 
 export default function ProductCard({ product, onProductClick = () => {} }) {
   const [isAdded, setIsAdded] = useState(false);
   const { addItem } = useCart();
+  const prefersReducedMotion = useReducedMotion();
+  
+  const [ref, inView] = useInView({
+    threshold: 0.15,
+    triggerOnce: true
+  });
 
   // Handle card click safely
   const handleCardClick = () => {
@@ -127,9 +136,18 @@ export default function ProductCard({ product, onProductClick = () => {} }) {
   };
 
   return (
-    <div
+    <motion.div
+      ref={ref}
+      initial={prefersReducedMotion ? {} : { opacity: 0, y: 50 }}
+      animate={inView && !prefersReducedMotion ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.5 }}
+      whileHover={prefersReducedMotion ? {} : { 
+        scale: 1.03,
+        boxShadow: '0 10px 30px -10px rgba(212, 168, 83, 0.3)'
+      }}
       onClick={handleCardClick}
       className="bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl border border-slate-200 group flex flex-col h-full min-h-[380px]"
+      style={{ willChange: 'transform' }}
     >
       {/* Image Area */}
       <div className="relative h-[140px] md:h-[160px] bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
@@ -153,10 +171,13 @@ export default function ProductCard({ product, onProductClick = () => {} }) {
         
         {/* Product Image or Emoji */}
         {product.image ? (
-          <img 
+          <motion.img 
+            whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
+            transition={{ duration: 0.3 }}
             src={product.image.startsWith('http') ? product.image : `${BASE_URL}${product.image}`} 
             alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className="w-full h-full object-cover"
+            style={{ willChange: 'transform' }}
           />
         ) : (
           <div className="text-5xl group-hover:scale-110 transition-transform duration-300">
@@ -185,12 +206,13 @@ export default function ProductCard({ product, onProductClick = () => {} }) {
         {/* Weight Selection */}
         <div className="flex flex-wrap gap-1 mb-4 min-h-[32px]">
           {weightOptions.map((weight) => (
-            <button
+            <motion.button
               key={weight}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedWeight(weight);
               }}
+              whileTap={prefersReducedMotion ? {} : { scale: 1.05 }}
               className={`px-2 py-1 text-[10px] font-black rounded transition-all ${
                 selectedWeight === weight
                   ? 'bg-slate-900 text-white shadow-sm'
@@ -198,7 +220,7 @@ export default function ProductCard({ product, onProductClick = () => {} }) {
               }`}
             >
               {weight}
-            </button>
+            </motion.button>
           ))}
           {weightOptions.length === 0 && (
             <span className="text-[10px] text-slate-400 italic">No weight options</span>
@@ -226,10 +248,12 @@ export default function ProductCard({ product, onProductClick = () => {} }) {
         </div>
 
         {/* Action Button - High Visibility */}
-        <button
+        <motion.button
           onClick={handleAddToCart}
           disabled={product.stock === 0}
-          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-black uppercase tracking-widest text-xs transition-all shadow-md active:scale-95 ${
+          whileHover={prefersReducedMotion || product.stock === 0 ? {} : { y: -2 }}
+          whileTap={prefersReducedMotion || product.stock === 0 ? {} : { scale: 0.95 }}
+          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-black uppercase tracking-widest text-xs transition-all shadow-md ${
             product.stock === 0
               ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
               : isAdded
@@ -248,8 +272,8 @@ export default function ProductCard({ product, onProductClick = () => {} }) {
               Add to Cart
             </>
           )}
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }

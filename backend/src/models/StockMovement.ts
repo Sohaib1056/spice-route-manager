@@ -13,15 +13,15 @@ export interface IStockMovement extends Document {
 }
 
 const StockMovementSchema: Schema = new Schema({
-  productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
-  productName: { type: String, required: true },
-  type: { type: String, enum: ["In", "Out", "Adjustment", "Return", "Damaged"], required: true },
+  productId: { type: Schema.Types.ObjectId, ref: "Product", required: true, index: true },
+  productName: { type: String, required: true, index: true },
+  type: { type: String, enum: ["In", "Out", "Adjustment", "Return", "Damaged"], required: true, index: true },
   qty: { type: Number, required: true },
   prevStock: { type: Number, required: true },
   newStock: { type: Number, required: true },
   reason: { type: String, required: true },
-  doneBy: { type: String, default: "System Admin" },
-  date: { type: Date, default: Date.now },
+  doneBy: { type: String, default: "System Admin", index: true },
+  date: { type: Date, default: Date.now, index: true },
 }, { timestamps: true });
 
 export default mongoose.model<IStockMovement>("StockMovement", StockMovementSchema);
