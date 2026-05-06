@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: spice-route-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        fromContext: MONGO_URI
+      - key: FRONTEND_URL
+        fromContext: FRONTEND_URL
+      - key: BCRYPT_SALT_ROUNDS
+        value: 10
+      - key: AUDIT_LOG_RETENTION_DAYS
+        value: 90
