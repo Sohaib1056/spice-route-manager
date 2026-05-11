@@ -60,7 +60,7 @@ function useDebounce(value: string, delay: number) {
   return debouncedValue;
 }
 
-const API_URL = "http://localhost:5000/api/website-orders";
+const API_URL = `${import.meta.env.VITE_API_URL}/website-orders` || "https://spice-route-manager-production.up.railway.app/api/website-orders";
 
 interface WebsiteOrder {
   _id: string;
@@ -135,7 +135,7 @@ export default function WebsiteOrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    const socket = io("http://localhost:5000");
+    const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || "https://spice-route-manager-production.up.railway.app");
 
     socket.on("new-website-order", (newOrder) => {
       setOrders((prevOrders) => [newOrder, ...prevOrders]);

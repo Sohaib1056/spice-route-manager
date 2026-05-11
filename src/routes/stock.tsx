@@ -236,7 +236,7 @@ export default function StockPage() {
     refreshData();
 
     // Listen for real-time stock updates
-    const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000");
+    const socket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || "https://spice-route-manager-production.up.railway.app");
     
     socket.on("stock-update", async () => {
       console.log("[StockPage] Stock update received, refreshing data...");

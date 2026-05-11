@@ -10,7 +10,7 @@ import { store, type Supplier, type Purchase } from "@/lib/store";
 import { api } from "@/services/api";
 import axios from "axios";
 
-const APIU = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const APIU = import.meta.env.VITE_API_URL || "https://spice-route-manager-production.up.railway.app/api";
 const norm = (item: any) => ({ ...item, id: item._id || item.id });
 
 // --- Types ---

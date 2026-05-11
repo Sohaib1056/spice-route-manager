@@ -56,7 +56,7 @@ export default function ReportsPage() {
   const handleExportCSV = async () => {
     setExporting(true);
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const baseUrl = import.meta.env.VITE_API_URL || "https://spice-route-manager-production.up.railway.app/api";
       const response = await fetch(`${baseUrl}/reports/export?type=combined`);
       
       if (response.ok) {
