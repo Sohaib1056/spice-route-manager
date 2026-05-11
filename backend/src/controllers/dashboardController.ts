@@ -86,7 +86,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         return orderDate === date;
       });
       const dailyReturns = returns.filter(r => {
-        const rDate = r.refundedAt || r.processedAt || r.createdAt;
+        const rDate = (r as any).refundedAt || (r as any).processedAt || (r as any).createdAt;
         const returnDate = rDate ? (rDate instanceof Date ? rDate.toISOString().slice(0, 10) : String(rDate).slice(0, 10)) : "";
         return returnDate === date;
       });

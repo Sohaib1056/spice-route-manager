@@ -412,8 +412,7 @@ export const deletePurchase = async (req: Request, res: Response) => {
       } else if (purchase.paymentStatus === "Partial") {
         // Purchase was partially paid
         // Recalculate balance from scratch to be safe
-        const PurchaseModel = await import("../models/Purchase.js");
-        const PurchaseImported = PurchaseModel.default;
+        const PurchaseImported = (await import("../models/Purchase.js")).default;
         const allPurchases = await PurchaseImported.find({ 
           supplierId: supplier._id,
           _id: { $ne: purchase._id } // Exclude the one being deleted
@@ -423,8 +422,7 @@ export const deletePurchase = async (req: Request, res: Response) => {
         const totalRemainingPurchases = allPurchases.reduce((sum: number, p: any) => sum + p.total, 0);
         
         // Get total paid from finance transactions
-        const FinanceTransactionModel = await import("../models/FinanceTransaction.js");
-        const FinanceTransactionImported = FinanceTransactionModel.default;
+        const FinanceTransactionImported = (await import("../models/FinanceTransaction.js")).default;
         const payments = await FinanceTransactionImported.find({
           supplierId: supplier._id,
           type: "Expense",

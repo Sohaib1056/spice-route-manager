@@ -1,7 +1,11 @@
+import { Request, Response } from "express";
 import FinanceTransaction from "../models/FinanceTransaction";
 import Supplier from "../models/Supplier";
 import AuditLog from "../models/AuditLog";
 import WebsiteOrder from "../models/WebsiteOrder";
+import Product from "../models/Product";
+import Sale from "../models/Sale";
+import Return from "../models/Return";
 import { asyncHandler } from "../middleware/asyncHandler";
 import { sendSuccess, sendError } from "../utils/responseHandler";
 import { logUserAction } from "../utils/auditLogger";
@@ -67,6 +71,8 @@ export const getFinanceStats = asyncHandler(async (req: Request, res: Response):
 
   let dateFilter: any = {};
   let websiteDateFilter: any = {};
+  let saleDateFilter: any = {};
+  let refundDateFilter: any = {};
   const today = new Date();
 
   if (range === "Today") {

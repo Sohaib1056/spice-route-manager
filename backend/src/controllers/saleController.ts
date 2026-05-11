@@ -121,7 +121,7 @@ export const getSaleById = async (req: Request, res: Response) => {
     let sale;
     
     // Check if ID is a MongoDB ObjectId
-    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+    if (typeof id === 'string' && id.match(/^[0-9a-fA-F]{24}$/)) {
       sale = await Sale.findById(id);
     } else {
       // Otherwise, search by invoice number

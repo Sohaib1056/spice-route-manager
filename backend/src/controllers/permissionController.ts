@@ -96,14 +96,15 @@ export const updateUserPermissions = async (req: Request, res: Response): Promis
 
     // Track changes
     const changes: Array<{ field: string; oldValue: string; newValue: string }> = [];
-    const permissionKeys = Object.keys(permissions) as Array<keyof typeof permissions>;
+    const permissionKeys = Object.keys(permissions) as Array<string>;
 
     permissionKeys.forEach((key) => {
-      if (user.permissions[key] !== permissions[key]) {
+      const userPermissions = user.permissions as any;
+      if (userPermissions[key] !== (permissions as any)[key]) {
         changes.push({
           field: key.charAt(0).toUpperCase() + key.slice(1),
-          oldValue: user.permissions[key] ? "Enabled" : "Disabled",
-          newValue: permissions[key] ? "Enabled" : "Disabled",
+          oldValue: userPermissions[key] ? "Enabled" : "Disabled",
+          newValue: (permissions as any)[key] ? "Enabled" : "Disabled",
         });
       }
     });
@@ -197,14 +198,16 @@ export const bulkUpdatePermissions = async (req: Request, res: Response): Promis
 
         // Track changes
         const changes: Array<{ field: string; oldValue: string; newValue: string }> = [];
-        const permissionKeys = Object.keys(update.permissions) as Array<keyof typeof update.permissions>;
+        const permissionKeys = Object.keys(update.permissions) as Array<string>;
 
         permissionKeys.forEach((key) => {
-          if (user.permissions[key] !== update.permissions[key]) {
+          const userPermissions = user.permissions as any;
+          const updatePermissions = update.permissions as any;
+          if (userPermissions[key] !== updatePermissions[key]) {
             changes.push({
               field: key.charAt(0).toUpperCase() + key.slice(1),
-              oldValue: user.permissions[key] ? "Enabled" : "Disabled",
-              newValue: update.permissions[key] ? "Enabled" : "Disabled",
+              oldValue: userPermissions[key] ? "Enabled" : "Disabled",
+              newValue: updatePermissions[key] ? "Enabled" : "Disabled",
             });
           }
         });
