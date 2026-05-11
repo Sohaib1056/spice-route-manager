@@ -19,23 +19,12 @@ const connectDB = async (): Promise<void> => {
     );
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
-
-    // Handle connection events
-    mongoose.connection.on("error", (err) => {
-      console.error(`MongoDB connection error: ${err}`);
-    });
-
-    mongoose.connection.on("disconnected", () => {
-      console.warn("MongoDB disconnected. Attempting to reconnect...");
-    });
-
-    mongoose.connection.on("reconnected", () => {
-      console.log("MongoDB reconnected");
-    });
-
   } catch (error) {
     if (error instanceof Error) {
-      console.error(`Error: ${error.message}`);
+      console.error(`MongoDB Connection Error: ${error.message}`);
+      if (error.message.includes("whitelist")) {
+        console.error("CRITICAL: IP not whitelisted in MongoDB Atlas. Please add 0.0.0.0/0 to Network Access.");
+      }
     } else {
       console.error("An unknown error occurred during database connection");
     }
