@@ -40,10 +40,12 @@ export const errorHandler = (
     'Access-Control-Allow-Origin': req.headers.origin || '*',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With, Origin',
+    'Vary': 'Origin'
   }).json({
     success: false,
     message: error.message || "Server Error",
-    error: process.env.NODE_ENV === "development" ? err : undefined,
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    details: err.message
   });
 };

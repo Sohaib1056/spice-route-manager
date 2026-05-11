@@ -36,7 +36,9 @@ const server = http.createServer(app);
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   "https://spice-route-manager-voem.vercel.app",
-  "https://spice-route-manager.vercel.app"
+  "https://spice-route-manager.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:5173"
 ].filter(Boolean) as string[];
 
 const corsOptions: cors.CorsOptions = {
@@ -49,7 +51,7 @@ const corsOptions: cors.CorsOptions = {
       if (allowedOrigin === "*") return true;
       if (origin === allowedOrigin) return true;
       // Also allow any vercel preview deployments for this project
-      if (origin.includes("vercel.app") && origin.includes("spice-route-manager")) {
+      if (origin.includes("vercel.app") && (origin.includes("spice-route-manager") || origin.includes("dryfruit"))) {
         return true;
       }
       return false;
@@ -59,13 +61,15 @@ const corsOptions: cors.CorsOptions = {
       callback(null, true);
     } else {
       console.log("CORS blocked origin:", origin);
-      callback(new Error("Not allowed by CORS"));
+      // Instead of failing, we'll allow it but log it during this debug phase
+      // This helps identify if CORS is the real culprit or just a symptom of 500
+      callback(null, true); 
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
-  exposedHeaders: ["Set-Cookie"]
+  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
+  exposedHeaders: ["Set-Cookie", "Access-Control-Allow-Origin"]
 };
 
 const io = new Server(server, {
@@ -116,7 +120,12 @@ app.use("/api/website-orders", websiteOrderRoutes);
 app.use("/api/returns", returnRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Spice Route Manager API is running...");
+  res.json({
+    message: "Spice Route Manager API is running...",
+    version: "1.0.1-CORS-FIX",
+    timestamp: new Date().toISOString(),
+    allowedOrigins: allowedOrigins
+  });
 });
 
 // Error Handler Middleware (must be last)
