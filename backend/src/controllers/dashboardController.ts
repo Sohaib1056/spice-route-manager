@@ -18,8 +18,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     last7DaysDate.setHours(0, 0, 0, 0);
 
     const [products, sales, purchases, transactions, returns, websiteOrders, todaySalesData, todayWebsiteOrders, todayReturns] = await Promise.all([
-      Product.find().select("name stock category sku buyPrice sellPrice active minStock").lean(),
-      Sale.find().select("total date items invoice customer customerPhone").lean(),
+      Product.find().select("name stock category sku buyPrice sellPrice active minStock unit").lean(),
+      Sale.find().select("total date items invoice customer customerPhone subtotal discount").lean(),
       Purchase.find().select("total status date").lean(),
       FinanceTransaction.find().select("amount type category date").lean(),
       Return.find({ status: { $in: ["Approved", "Refunded"] } }).select("refundAmount items status refundedAt processedAt createdAt").lean(),
@@ -29,7 +29,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           { date: { $gte: today, $lt: tomorrow } },
           { createdAt: { $gte: today, $lt: tomorrow } }
         ]
-      }).select("total date items invoice").lean(),
+      }).select("total date items invoice subtotal discount").lean(),
       WebsiteOrder.find({ 
         paymentStatus: "Paid", 
         $or: [
@@ -45,7 +45,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           { createdAt: { $gte: today, $lt: tomorrow } }
         ]
       }).select("refundAmount items status").lean()
-    ]);
+    ]).catch(err => {
+      console.error("Critical error in Dashboard stats queries:", err);
+      throw err;
+    });
 
     const refundedAmount = returns.reduce((sum, r) => sum + (r.refundAmount || 0), 0);
     const todayRefundedAmount = todayReturns.reduce((sum, r) => sum + (r.refundAmount || 0), 0);

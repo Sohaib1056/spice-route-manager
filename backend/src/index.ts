@@ -39,17 +39,37 @@ const allowedOrigins = [
   "https://spice-route-manager.vercel.app"
 ].filter(Boolean) as string[];
 
-const io = new Server(server, {
-  cors: {
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin matches any of the allowed origins or is a subpath/preview URL of vercel
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin === "*") return true;
+      // Exact match
+      if (origin === allowedOrigin) return true;
+      // Match Vercel preview/subdomains
+      if (allowedOrigin.includes("vercel.app") && origin.endsWith("vercel.app") && origin.startsWith("https://spice-route-manager")) {
+        return true;
       }
-    },
-    methods: ["GET", "POST"]
-  }
+      return false;
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log("CORS blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+};
+
+const io = new Server(server, {
+  cors: corsOptions
 });
 
 // Make io accessible to our router
@@ -67,16 +87,7 @@ connectDB();
 
 // Middleware
 app.use(express.json());
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
