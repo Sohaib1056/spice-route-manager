@@ -36,7 +36,12 @@ export const errorHandler = (
     error = { ...error, message, statusCode: 400 };
   }
 
-  res.status(error.statusCode || 500).json({
+  res.status(error.statusCode || 500).set({
+    'Access-Control-Allow-Origin': req.headers.origin || '*',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With'
+  }).json({
     success: false,
     message: error.message || "Server Error",
     error: process.env.NODE_ENV === "development" ? err : undefined,

@@ -44,13 +44,12 @@ const corsOptions: cors.CorsOptions = {
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Check if origin matches any of the allowed origins or is a subpath/preview URL of vercel
+    // Check if origin matches any of the allowed origins or is a vercel subdomain
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (allowedOrigin === "*") return true;
-      // Exact match
       if (origin === allowedOrigin) return true;
-      // Match Vercel preview/subdomains
-      if (allowedOrigin.includes("vercel.app") && origin.endsWith("vercel.app") && origin.startsWith("https://spice-route-manager")) {
+      // Also allow any vercel preview deployments for this project
+      if (origin.includes("vercel.app") && origin.includes("spice-route-manager")) {
         return true;
       }
       return false;
@@ -65,7 +64,8 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+  exposedHeaders: ["Set-Cookie"]
 };
 
 const io = new Server(server, {

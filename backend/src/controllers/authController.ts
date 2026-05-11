@@ -8,9 +8,11 @@ import AuditLog from "../models/AuditLog";
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
+    console.log(`[Auth] Login attempt for email: ${email}`);
 
     // Validate input
     if (!email || !password) {
+      console.warn(`[Auth] Login failed: Missing email or password`);
       res.status(400).json({
         success: false,
         message: "Please provide email and password",
@@ -22,6 +24,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
+      console.warn(`[Auth] Login failed: User not found for email: ${email}`);
       res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -31,6 +34,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Check if user is active
     if (user.status !== "Active") {
+      console.warn(`[Auth] Login failed: User account deactivated: ${email}`);
       res.status(403).json({
         success: false,
         message: "Your account has been deactivated. Please contact administrator.",
@@ -42,6 +46,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const isPasswordMatch = await user.comparePassword(password);
 
     if (!isPasswordMatch) {
+      console.warn(`[Auth] Login failed: Incorrect password for email: ${email}`);
       res.status(401).json({
         success: false,
         message: "Invalid credentials",

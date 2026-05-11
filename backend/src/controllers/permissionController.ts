@@ -100,11 +100,12 @@ export const updateUserPermissions = async (req: Request, res: Response): Promis
 
     permissionKeys.forEach((key) => {
       const userPermissions = user.permissions as any;
-      if (userPermissions[key] !== (permissions as any)[key]) {
+      const updatePermissions = permissions as any;
+      if (userPermissions && updatePermissions && userPermissions[key] !== updatePermissions[key]) {
         changes.push({
           field: key.charAt(0).toUpperCase() + key.slice(1),
           oldValue: userPermissions[key] ? "Enabled" : "Disabled",
-          newValue: (permissions as any)[key] ? "Enabled" : "Disabled",
+          newValue: updatePermissions[key] ? "Enabled" : "Disabled",
         });
       }
     });
@@ -203,7 +204,7 @@ export const bulkUpdatePermissions = async (req: Request, res: Response): Promis
         permissionKeys.forEach((key) => {
           const userPermissions = user.permissions as any;
           const updatePermissions = update.permissions as any;
-          if (userPermissions[key] !== updatePermissions[key]) {
+          if (userPermissions && updatePermissions && userPermissions[key] !== updatePermissions[key]) {
             changes.push({
               field: key.charAt(0).toUpperCase() + key.slice(1),
               oldValue: userPermissions[key] ? "Enabled" : "Disabled",
