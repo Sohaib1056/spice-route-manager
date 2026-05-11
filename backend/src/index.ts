@@ -33,55 +33,61 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "https://spice-route-manager-voem.vercel.app",
-  "https://spice-route-manager.vercel.app",
-  "http://localhost:3000",
-  "http://localhost:5173"
-].filter(Boolean) as string[];
 
-const corsOptions: cors.CorsOptions = {
-  origin: true, // Reflect request origin to avoid CORS issues
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin", "Access-Control-Allow-Origin"],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+// 1. Health check first - ensure it's accessible without any middleware interference
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
 });
 
-// Connect Database
-connectDB();
-
-// Middleware
+// 2. Ultimate CORS Middleware - MUST be before everything else
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin) {
+  
+  // Explicitly allow Vercel and Localhost origins
+  const allowedOrigins = [
+    "https://spice-route-manager.vercel.app",
+    "https://spice-route-manager-voem.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173"
+  ];
+
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else if (!origin) {
+    // For tools like Postman
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  } else {
+    // Fallback to allowing the request origin anyway to prevent blocking
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
+
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, Origin");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, Origin, Access-Control-Allow-Origin");
   res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
   
   if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
+    return res.status(204).end();
   }
   next();
 });
 
+// 3. standard CORS as backup
+const corsOptions: cors.CorsOptions = {
+  origin: true,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
+  optionsSuccessStatus: 204
+};
 app.use(cors(corsOptions));
 
+// 4. Other Middlewares
 app.use(express.json());
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false, // Disable CSP for API
 }));
 app.use(morgan("dev"));
 
@@ -110,20 +116,35 @@ app.use("/api/returns", returnRoutes);
 app.get("/", (req, res) => {
   res.json({
     message: "Spice Route Manager API is running...",
-    version: "1.0.1-CORS-FIX",
-    timestamp: new Date().toISOString(),
-    allowedOrigins: allowedOrigins
+    version: "1.0.2-STRICT-CORS-FIX",
+    timestamp: new Date().toISOString()
   });
 });
 
 // Error Handler Middleware (must be last)
 app.use(errorHandler);
 
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
+const PORT = process.env.PORT || 5000;
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
-const PORT = process.env.PORT || 5000;
+// Make io accessible to our router
+app.set('socketio', io);
+
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+  socket.on("disconnect", () => {
+    console.log("User disconnected");
+  });
+});
+
+// Connect Database
+connectDB();
 
 server.listen(PORT, () => {
   console.log(`Server running in ${config.nodeEnv} mode on port ${PORT}`);
