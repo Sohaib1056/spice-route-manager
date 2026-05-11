@@ -43,33 +43,14 @@ const allowedOrigins = [
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin matches any of the allowed origins or is a vercel subdomain
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (allowedOrigin === "*") return true;
-      if (origin === allowedOrigin) return true;
-      // Also allow any vercel preview deployments for this project
-      if (origin.includes("vercel.app") && (origin.includes("spice-route-manager") || origin.includes("dryfruit"))) {
-        return true;
-      }
-      return false;
-    });
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      console.log("CORS blocked origin:", origin);
-      // Instead of failing, we'll allow it but log it during this debug phase
-      // This helps identify if CORS is the real culprit or just a symptom of 500
-      callback(null, true); 
-    }
+    // Strictly allow all origins for debugging to fix the persistent Vercel CORS issue
+    callback(null, true);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
-  exposedHeaders: ["Set-Cookie", "Access-Control-Allow-Origin"]
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 const io = new Server(server, {
@@ -90,8 +71,8 @@ io.on("connection", (socket) => {
 connectDB();
 
 // Middleware
-app.use(express.json());
 app.use(cors(corsOptions));
+app.use(express.json());
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
