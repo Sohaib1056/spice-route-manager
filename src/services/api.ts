@@ -12,19 +12,31 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
+    const url = `${API_BASE_URL}${endpoint}`;
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      console.log(`[ApiService] Requesting: ${url}`, {
+        method: options.method || "GET",
+        headers: options.headers,
+      });
+
+      const response = await fetch(url, {
         ...options,
+        mode: 'cors',
         headers: {
           "Content-Type": "application/json",
           ...options.headers,
         },
       });
 
+      if (!response.ok) {
+        console.warn(`[ApiService] Response not OK: ${response.status} ${response.statusText} for ${url}`);
+        // For 404s or other errors, we still try to parse the body as it might contain error details
+      }
+
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error("API Error:", error);
+      console.error(`[ApiService] Network/Fetch Error for ${url}:`, error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",

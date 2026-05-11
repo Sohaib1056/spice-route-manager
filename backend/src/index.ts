@@ -42,39 +42,46 @@ const allowedOrigins = [
 ].filter(Boolean) as string[];
 
 const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    // Strictly allow all origins for debugging to fix the persistent Vercel CORS issue
-    callback(null, true);
-  },
+  origin: true, // Reflect request origin to avoid CORS issues
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin", "Access-Control-Allow-Origin"],
   preflightContinue: false,
   optionsSuccessStatus: 204
 };
 
 const io = new Server(server, {
-  cors: corsOptions
-});
-
-// Make io accessible to our router
-app.set('socketio', io);
-
-io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
-  });
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
 // Connect Database
 connectDB();
 
 // Middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, Origin");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 app.use(cors(corsOptions));
+
 app.use(express.json());
 app.use(helmet({
-  crossOriginResourcePolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
 }));
 app.use(morgan("dev"));
 
