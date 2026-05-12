@@ -10,13 +10,17 @@ interface ApiResponse<T = any> {
 class ApiService {
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retryCount: number = 0
   ): Promise<ApiResponse<T>> {
     const url = `${API_BASE_URL}${endpoint}`;
+    const maxRetries = 2;
+    
     try {
       console.log(`[ApiService] Requesting: ${url}`, {
         method: options.method || "GET",
         headers: options.headers,
+        retryCount,
       });
 
       const response = await fetch(url, {
@@ -28,6 +32,13 @@ class ApiService {
         },
       });
 
+      // Handle 502 Bad Gateway with retry logic
+      if (response.status === 502 && retryCount < maxRetries) {
+        console.warn(`[ApiService] 502 Bad Gateway, retrying... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+        return this.request(endpoint, options, retryCount + 1);
+      }
+
       if (!response.ok) {
         console.warn(`[ApiService] Response not OK: ${response.status} ${response.statusText} for ${url}`);
         // For 404s or other errors, we still try to parse the body as it might contain error details
@@ -37,6 +48,14 @@ class ApiService {
       return data;
     } catch (error) {
       console.error(`[ApiService] Network/Fetch Error for ${url}:`, error);
+      
+      // Retry on network errors
+      if (retryCount < maxRetries && (error instanceof TypeError && error.message.includes('fetch'))) {
+        console.warn(`[ApiService] Network error, retrying... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+        return this.request(endpoint, options, retryCount + 1);
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -62,6 +81,14 @@ class ApiService {
   // User APIs
   async getUsers() {
     return this.request("/users");
+  }
+
+  async getSuppliers() {
+    return this.request("/suppliers");
+  }
+
+  async getPurchases() {
+    return this.request("/purchases");
   }
 
   async getUserById(id: string) {
@@ -321,6 +348,27 @@ class ApiService {
     return this.request(`/returns/${id}/refunded`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    });
+  }
+
+  // Website Order Management Methods
+  async patchOrderStatus(orderId: string, payload: any) {
+    return this.request(`/website-orders/${orderId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async patchPaymentStatus(orderId: string, status: string) {
+    return this.request(`/website-orders/${orderId}/payment`, {
+      method: "PATCH",
+      body: JSON.stringify({ paymentStatus: status }),
+    });
+  }
+
+  async deleteWebsiteOrder(orderId: string) {
+    return this.request(`/website-orders/${orderId}`, {
+      method: "DELETE",
     });
   }
 }

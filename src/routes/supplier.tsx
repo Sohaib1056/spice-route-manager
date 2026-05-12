@@ -8,9 +8,7 @@ import { Modal } from "@/components/Modal";
 import { formatPKR, formatDate } from "@/lib/format";
 import { store, type Supplier, type Purchase } from "@/lib/store";
 import { api } from "@/services/api";
-import axios from "axios";
 
-const APIU = import.meta.env.VITE_API_URL || "https://spice-route-manager-production.up.railway.app/api";
 const norm = (item: any) => ({ ...item, id: item._id || item.id });
 
 // --- Types ---
@@ -115,8 +113,8 @@ export default function SupplierPage() {
     const refreshData = async () => {
       try {
         const [suppRes, purRes] = await Promise.all([
-          axios.get(`${APIU}/suppliers`),
-          axios.get(`${APIU}/purchases`),
+          api.getSuppliers(),
+          api.getPurchases(),
         ]);
         setList(suppRes.data.map(norm));
         setPurchases(purRes.data.map(norm));
@@ -132,8 +130,8 @@ export default function SupplierPage() {
   const refreshAll = async () => {
     try {
       const [suppRes, purRes] = await Promise.all([
-        axios.get(`${APIU}/suppliers`),
-        axios.get(`${APIU}/purchases`),
+        api.getSuppliers(),
+        api.getPurchases(),
       ]);
       setList(suppRes.data.map(norm));
       setPurchases(purRes.data.map(norm));
@@ -280,7 +278,7 @@ export default function SupplierPage() {
               <button onClick={async () => {
                 // Fetch fresh supplier data directly from API before opening ledger
                 try {
-                  const suppRes = await axios.get(`${APIU}/suppliers`);
+                  const suppRes = await api.getSuppliers();
                   const freshList = suppRes.data.map(norm);
                   setList(freshList);
                   const freshSupplier = freshList.find((x: Supplier) => x.id === s.id) || s;

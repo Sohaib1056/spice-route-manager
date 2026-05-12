@@ -41,7 +41,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "react-hot-toast";
-import axios from "axios";
+import { api } from "@/services/api";
 
 // Custom hook for debouncing
 function useDebounce(value: string, delay: number) {
@@ -59,8 +59,6 @@ function useDebounce(value: string, delay: number) {
 
   return debouncedValue;
 }
-
-const API_URL = `${import.meta.env.VITE_API_URL}/website-orders` || "https://spice-route-manager-production.up.railway.app/api/website-orders";
 
 interface WebsiteOrder {
   _id: string;
@@ -168,9 +166,9 @@ export default function WebsiteOrdersPage() {
       if (statusFilter !== "all") params.status = statusFilter;
       if (debouncedSearch) params.search = debouncedSearch;
 
-      const response = await axios.get(API_URL, { params });
-      setOrders(response.data.data.orders);
-      setTotalPages(response.data.data.pagination.pages);
+      const response = await api.getWebsiteOrders(params);
+      setOrders(response.data?.orders || []);
+      setTotalPages(response.data?.pagination?.pages || 1);
     } catch (error) {
       console.error("Error fetching orders:", error);
       toast.error("Failed to fetch orders");
@@ -181,8 +179,8 @@ export default function WebsiteOrdersPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API_URL}/stats`);
-      setStats(response.data.data);
+      const response = await api.getWebsiteOrders({ page: 1, limit: 1 });
+      setStats(response.data?.stats || {});
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
@@ -205,16 +203,12 @@ export default function WebsiteOrdersPage() {
       
       // Update Order Status if changed
       if (editForm.orderStatus !== selectedOrder.orderStatus) {
-        await axios.patch(`${API_URL}/${selectedOrder._id}/status`, { 
-          orderStatus: editForm.orderStatus 
-        });
+        await api.patchOrderStatus(selectedOrder._id, editForm.orderStatus);
       }
       
       // Update Payment Status if changed
       if (editForm.paymentStatus !== selectedOrder.paymentStatus) {
-        await axios.patch(`${API_URL}/${selectedOrder._id}/payment`, { 
-          paymentStatus: editForm.paymentStatus 
-        });
+        await api.patchPaymentStatus(selectedOrder._id, editForm.paymentStatus);
       }
 
       toast.success("Order updated successfully");
@@ -238,7 +232,7 @@ export default function WebsiteOrdersPage() {
     
     try {
       setIsDeleting(true);
-      await axios.delete(`${API_URL}/${orderToDelete}`);
+      await api.deleteWebsiteOrder(orderToDelete);
       toast.success("Order deleted successfully");
       setDeleteOpen(false);
       setOrderToDelete(null);
@@ -258,13 +252,13 @@ export default function WebsiteOrdersPage() {
       const payload: any = { orderStatus: newStatus };
       if (trackingNumber) payload.trackingNumber = trackingNumber;
 
-      await axios.patch(`${API_URL}/${orderId}/status`, payload);
+      await api.patchOrderStatus(orderId, payload);
       toast.success("Order status updated successfully");
       fetchOrders();
       fetchStats();
       if (selectedOrder?._id === orderId) {
-        const response = await axios.get(`${API_URL}/${orderId}`);
-        setSelectedOrder(response.data.data);
+        const response = await api.getWebsiteOrderById(orderId);
+        setSelectedOrder(response.data);
       }
     } catch (error) {
       console.error("Error updating status:", error);
@@ -274,13 +268,13 @@ export default function WebsiteOrdersPage() {
 
   const updatePaymentStatus = async (orderId: string, newStatus: string) => {
     try {
-      await axios.patch(`${API_URL}/${orderId}/payment`, { paymentStatus: newStatus });
+      await api.patchPaymentStatus(orderId, newStatus);
       toast.success("Payment status updated successfully");
       fetchOrders();
       fetchStats();
       if (selectedOrder?._id === orderId) {
-        const response = await axios.get(`${API_URL}/${orderId}`);
-        setSelectedOrder(response.data.data);
+        const response = await api.getWebsiteOrderById(orderId);
+        setSelectedOrder(response.data);
       }
     } catch (error) {
       console.error("Error updating payment:", error);
