@@ -72,7 +72,7 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Otherwise, allow it anyway to prevent blocking (you can change this to reject)
+    // Otherwise, allow it anyway to prevent blocking
     return callback(null, true);
   },
   credentials: true,
@@ -87,6 +87,7 @@ app.use(cors({
     "Access-Control-Request-Headers"
   ],
   exposedHeaders: ["Content-Range", "X-Content-Range"],
+  preflightContinue: false,
   optionsSuccessStatus: 204,
   maxAge: 86400 // 24 hours
 }));
@@ -98,6 +99,15 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
   res.setHeader("Access-Control-Allow-Credentials", "true");
+  
+  // Handle OPTIONS preflight requests explicitly
+  if (req.method === 'OPTIONS') {
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, Origin");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    return res.status(204).end();
+  }
+  
   next();
 });
 
