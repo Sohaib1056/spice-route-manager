@@ -150,9 +150,10 @@ app.use("/api/returns", returnRoutes);
 app.get("/", (req, res) => {
   res.json({
     message: "Spice Route Manager API is running...",
-    version: "1.0.3-CORS-FIXED",
+    version: "1.0.4-CORS-PRODUCTION-READY",
     timestamp: new Date().toISOString(),
     cors: "enabled",
+    environment: process.env.NODE_ENV || "development",
     allowedOrigins: [
       "https://spice-route-manager.vercel.app",
       "https://spice-route-manager-voem.vercel.app",
@@ -197,6 +198,19 @@ io.on("connection", (socket) => {
 // Connect Database
 connectDB();
 
+// Log startup information
+console.log('='.repeat(60));
+console.log('🚀 Spice Route Manager API Starting...');
+console.log('='.repeat(60));
+console.log(`📍 Environment: ${config.nodeEnv}`);
+console.log(`🔌 Port: ${PORT}`);
+console.log(`🌐 CORS Enabled for origins:`);
+allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
+console.log(`   - *.vercel.app (all preview deployments)`);
+console.log('='.repeat(60));
+
 server.listen(PORT, () => {
-  console.log(`Server running in ${config.nodeEnv} mode on port ${PORT}`);
+  console.log(`✅ Server running in ${config.nodeEnv} mode on port ${PORT}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`📡 API ready: http://localhost:${PORT}/api`);
 });
