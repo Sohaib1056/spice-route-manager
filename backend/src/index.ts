@@ -34,6 +34,15 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
+process.on("unhandledRejection", (reason) => {
+  console.error("❌ UNHANDLED PROMISE REJECTION:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("❌ UNCAUGHT EXCEPTION:", error);
+  process.exit(1);
+});
+
 // Trust proxy - CRITICAL for Railway/Vercel deployment
 app.set('trust proxy', 1);
 
@@ -90,9 +99,16 @@ const corsOptions: cors.CorsOptions = {
 
 app.use(cors(corsOptions));
 
-// 3. Explicit OPTIONS handler for Express 5 (handles preflight before any other middleware)
-// Using a regex pattern that is compatible with path-to-regexp v8+
-app.options('/:path*', cors(corsOptions));
+// 3. Handle all preflight requests without route patterns.
+// Express 5 uses path-to-regexp v8, so wildcard route strings like "*", "(.*)",
+// and "/:path*" can crash the app during startup. App-level CORS already sets
+// the required headers, so we just end OPTIONS requests here.
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // 4. Simple health check - MUST be early
 app.get('/health', (req, res) => {
