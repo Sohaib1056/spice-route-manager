@@ -65,7 +65,7 @@ const WebsiteOrderSchema: Schema = new Schema({
   orderNumber: { 
     type: String, 
     required: true, 
-    unique: true,
+    unique: true, // This creates an index automatically
     default: () => `WEB-${Date.now()}-${Math.floor(Math.random() * 1000)}`
   },
   orderDate: { type: Date, default: Date.now },
@@ -135,7 +135,7 @@ const WebsiteOrderSchema: Schema = new Schema({
 }, { timestamps: true });
 
 // Indexes for better query performance
-WebsiteOrderSchema.index({ orderNumber: 1 });
+// Note: orderNumber already has unique index from schema definition
 WebsiteOrderSchema.index({ orderDate: -1 });
 WebsiteOrderSchema.index({ orderStatus: 1 });
 WebsiteOrderSchema.index({ "customer.phone": 1 });

@@ -29,7 +29,7 @@ export interface IProduct extends Document {
 const ProductSchema: Schema = new Schema({
   name: { type: String, required: true, index: true },
   nameUrdu: { type: String },
-  sku: { type: String, required: true, unique: true, index: true },
+  sku: { type: String, required: true, unique: true }, // unique creates index automatically
   category: { type: String, required: true, index: true },
   emoji: { type: String, default: "🥜" },
   buyPrice: { type: Number, required: true },

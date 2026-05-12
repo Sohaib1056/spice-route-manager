@@ -23,7 +23,7 @@ export interface ISale extends Document {
 }
 
 const SaleSchema: Schema = new Schema({
-  invoice: { type: String, required: true, unique: true, index: true },
+  invoice: { type: String, required: true, unique: true }, // unique creates index automatically
   date: { type: Date, default: Date.now, index: true },
   customer: { type: String, default: "Walk-in Customer", index: true },
   customerPhone: { type: String, index: true },

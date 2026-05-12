@@ -34,7 +34,7 @@ export interface IReturn extends Document {
 
 const ReturnSchema: Schema = new Schema(
   {
-    returnId: { type: String, required: true, unique: true, index: true },
+    returnId: { type: String, required: true, unique: true }, // unique creates index automatically
     type: { type: String, enum: ["website", "pos"], required: true, index: true },
     orderId: { type: Schema.Types.ObjectId, ref: "WebsiteOrder", index: true },
     saleId: { type: Schema.Types.ObjectId, ref: "Sale", index: true },
