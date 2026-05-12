@@ -37,13 +37,15 @@ const server = http.createServer(app);
 // Trust proxy - CRITICAL for Railway/Vercel deployment
 app.set('trust proxy', 1);
 
-// Simple health check - MUST be first for Railway
-app.get('/health', (req, res) => {
-  console.log('✅ Health check endpoint hit');
-  res.status(200).send('OK');
+// 1. Pre-middleware logging for debugging Railway 502s
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin || 'none'}`);
+  }
+  next();
 });
 
-// 1. CORS Configuration - MUST be FIRST before any other middleware
+// 2. CORS Configuration - MUST be absolute first
 const allowedOrigins = [
   "https://spice-route-manager.vercel.app",
   "https://spice-route-manager-voem.vercel.app",
@@ -52,29 +54,22 @@ const allowedOrigins = [
   "http://localhost:5174"
 ];
 
-// CORS middleware with proper configuration
-app.use(cors({
+const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+    const isAllowed = allowedOrigins.includes(origin) || 
+                      origin.endsWith('.vercel.app') || 
+                      origin.includes('localhost') ||
+                      origin.includes('127.0.0.1');
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Origin ${origin} not explicitly in whitelist, but allowing for production stability`);
+      callback(null, true); // Allow all in production to prevent blocking while debugging
     }
-    
-    // Allow any Vercel preview deployments
-    if (origin.includes('.vercel.app')) {
-      return callback(null, true);
-    }
-    
-    // In development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    // Otherwise, allow it anyway to prevent blocking
-    return callback(null, true);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
@@ -90,26 +85,17 @@ app.use(cors({
   exposedHeaders: ["Content-Range", "X-Content-Range"],
   preflightContinue: false,
   optionsSuccessStatus: 204,
-  maxAge: 86400 // 24 hours
-}));
+  maxAge: 86400
+};
 
-// 2. Additional CORS headers for extra compatibility
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.includes('.vercel.app'))) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  
-  // Handle OPTIONS preflight requests explicitly
-  if (req.method === 'OPTIONS') {
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, Origin");
-    res.setHeader("Access-Control-Max-Age", "86400");
-    return res.status(204).end();
-  }
-  
-  next();
+app.use(cors(corsOptions));
+
+// 3. Explicit OPTIONS handler for Express 5 (handles preflight before any other middleware)
+app.options('*', cors(corsOptions));
+
+// 4. Simple health check - MUST be early
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
 });
 
 // 3. Body parsers - BEFORE routes
@@ -189,7 +175,14 @@ app.use((req, res) => {
 // Error Handler Middleware (must be last)
 app.use(errorHandler);
 
-const PORT = parseInt(process.env.PORT || '5000', 10);
+// Port configuration with safety check
+const PORT_VAL = process.env.PORT || '5000';
+const PORT = parseInt(PORT_VAL, 10);
+
+if (isNaN(PORT)) {
+  console.error(`❌ CRITICAL: Invalid PORT value: ${PORT_VAL}`);
+  process.exit(1);
+}
 
 const io = new Server(server, {
   cors: {

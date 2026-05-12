@@ -2,10 +2,16 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Ensure upload directory exists
+// Ensure upload directory exists with better error handling
 const uploadDir = path.join(__dirname, "../../uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadDir)) {
+    console.log(`Creating upload directory at: ${uploadDir}`);
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (error) {
+  console.error("⚠️  Warning: Could not create upload directory:", error);
+  // Don't crash, maybe we can use /tmp or it already exists but fs.existsSync failed
 }
 
 const storage = multer.diskStorage({

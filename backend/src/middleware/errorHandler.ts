@@ -36,13 +36,14 @@ export const errorHandler = (
     error = { ...error, message, statusCode: 400 };
   }
 
-  res.status(error.statusCode || 500).set({
-    'Access-Control-Allow-Origin': req.headers.origin || '*',
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, X-Requested-With, Origin',
-    'Vary': 'Origin'
-  }).json({
+  // Ensure CORS headers are present even in error responses
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
+  res.status(error.statusCode || 500).json({
     success: false,
     message: error.message || "Server Error",
     stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
