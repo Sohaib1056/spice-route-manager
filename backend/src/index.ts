@@ -104,7 +104,9 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 
 // 3. Robust preflight handling
-app.options('*', cors(corsOptions));
+// Express 5 uses path-to-regexp v8 which requires named parameters or specific regex patterns.
+// Instead of '*', we use '(.*)' or simply let the cors middleware handle it.
+app.options('(.*)', cors(corsOptions));
 
 // 4. Force CORS headers for all responses as a fallback
 app.use((req, res, next) => {
