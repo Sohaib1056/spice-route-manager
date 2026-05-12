@@ -37,6 +37,11 @@ const server = http.createServer(app);
 // Trust proxy - CRITICAL for Railway/Vercel deployment
 app.set('trust proxy', 1);
 
+// Simple health check - MUST be first for Railway
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // 1. CORS Configuration - MUST be FIRST before any other middleware
 const allowedOrigins = [
   "https://spice-route-manager.vercel.app",
@@ -110,15 +115,6 @@ app.use(helmet({
 
 // 5. Logging
 app.use(morgan("dev"));
-
-// 6. Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV 
-  });
-});
 
 // Static Folder for Uploads - with CORS headers
 app.use("/uploads", cors(), express.static(path.join(__dirname, "../uploads"), {
