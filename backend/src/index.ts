@@ -165,7 +165,7 @@ app.get("/", (req, res) => {
 // Error Handler Middleware (must be last)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 
 const io = new Server(server, {
   cors: {
