@@ -23,13 +23,15 @@ class ApiService {
         retryCount,
       });
 
+      const headers = new Headers(options.headers || {});
+      if (options.body && !headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
+      }
+
       const response = await fetch(url, {
         ...options,
-        mode: 'cors',
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-        },
+        mode: "cors",
+        headers,
       });
 
       // Handle 502 Bad Gateway with retry logic
