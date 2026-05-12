@@ -128,24 +128,30 @@ app.use("/uploads", cors(), express.static(path.join(__dirname, "../uploads"), {
   }
 }));
 
-// API Routes
-app.use("/api/products", productRoutes);
-app.use("/api/suppliers", supplierRoutes);
-app.use("/api/sales", saleRoutes);
-app.use("/api/purchases", purchaseRoutes);
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/stock", stockRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/permissions", permissionRoutes);
-app.use("/api/audit", auditRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/finance", financeRoutes);
-app.use("/api/reports", reportRoutes);
-app.use("/api/settings", settingsRoutes);
-app.use("/api/low-stock", lowStockRoutes);
-app.use("/api/website-orders", websiteOrderRoutes);
-app.use("/api/returns", returnRoutes);
+// API Routes with error handling
+try {
+  app.use("/api/products", productRoutes);
+  app.use("/api/suppliers", supplierRoutes);
+  app.use("/api/sales", saleRoutes);
+  app.use("/api/purchases", purchaseRoutes);
+  app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/stock", stockRoutes);
+  app.use("/api/users", userRoutes);
+  app.use("/api/permissions", permissionRoutes);
+  app.use("/api/audit", auditRoutes);
+  app.use("/api/orders", orderRoutes);
+  app.use("/api/auth", authRoutes);
+  app.use("/api/finance", financeRoutes);
+  app.use("/api/reports", reportRoutes);
+  app.use("/api/settings", settingsRoutes);
+  app.use("/api/low-stock", lowStockRoutes);
+  app.use("/api/website-orders", websiteOrderRoutes);
+  app.use("/api/returns", returnRoutes);
+  console.log('✅ All API routes mounted successfully');
+} catch (error) {
+  console.error('❌ CRITICAL: Error mounting API routes:', error);
+  process.exit(1);
+}
 
 app.get("/", (req, res) => {
   res.json({
@@ -159,6 +165,17 @@ app.get("/", (req, res) => {
       "https://spice-route-manager-voem.vercel.app",
       "*.vercel.app"
     ]
+  });
+});
+
+// Catch-all for undefined API routes
+app.use("/api/*", (req, res) => {
+  console.log(`⚠️  404: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`,
+    method: req.method,
+    timestamp: new Date().toISOString()
   });
 });
 
