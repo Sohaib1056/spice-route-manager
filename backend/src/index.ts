@@ -104,7 +104,6 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 
 // 3. Robust preflight handling
-// Express 5 path parser rejects "*" and "(.*)" as strings; use a RegExp route instead.
 app.options(/.*/, cors(corsOptions));
 
 // 4. Force CORS headers for all responses as a fallback
@@ -202,7 +201,7 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Port configuration with safety check
-const PORT_VAL = process.env.PORT || '5000';
+const PORT_VAL = process.env.PORT || '8080';
 const PORT = parseInt(PORT_VAL, 10);
 
 if (isNaN(PORT)) {
