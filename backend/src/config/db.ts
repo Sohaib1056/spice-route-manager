@@ -16,7 +16,6 @@ const connectDB = async (retryCount: number = 0): Promise<void> => {
       retryWrites: true,
       w: 'majority' as const,
       bufferCommands: false,
-      // Add retry settings
       maxIdleTimeMS: 30000,
       waitQueueTimeoutMS: 10000,
     };
@@ -25,25 +24,33 @@ const connectDB = async (retryCount: number = 0): Promise<void> => {
 
     // Validate MongoDB URI format
     if (!mongoUri) {
-      console.error("FATAL: MONGO_URI is not defined in environment variables.");
+      console.error("❌ FATAL: MONGO_URI is not defined in environment variables.");
       console.error("Please set MONGO_URI in your Railway environment variables.");
       console.error("Format: mongodb+srv://username:password@cluster.mongodb.net/dbname");
+      
+      // In production, we MUST have database
       if (process.env.NODE_ENV === 'production') {
-        console.error("CRITICAL: Cannot start server without database connection in production.");
-        process.exit(1);
+        console.error("⚠️  WARNING: Running without database in production!");
+        console.error("Server will start but all database operations will fail.");
+        return; // Don't exit, let server start
       }
       return;
     }
 
     // Validate URI structure
     if (!mongoUri.startsWith('mongodb+srv://') && !mongoUri.startsWith('mongodb://')) {
-      console.error("FATAL: Invalid MONGO_URI format. Must start with mongodb:// or mongodb+srv://");
-      process.exit(1);
+      console.error("❌ FATAL: Invalid MONGO_URI format. Must start with mongodb:// or mongodb+srv://");
+      if (process.env.NODE_ENV === 'production') {
+        console.error("⚠️  WARNING: Invalid MongoDB URI in production!");
+        return; // Don't exit, let server start
+      }
+      return;
     }
 
     // Set global mongoose options before connecting
     mongoose.set('bufferCommands', false);
     mongoose.set('debug', process.env.NODE_ENV === 'development');
+    mongoose.set('strictQuery', false);
 
     console.log(`Attempting to connect to MongoDB Atlas... (Attempt ${retryCount + 1}/${maxRetries + 1})`);
     console.log(`MongoDB URI: ${mongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')}`); // Hide credentials in logs
@@ -64,7 +71,7 @@ const connectDB = async (retryCount: number = 0): Promise<void> => {
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('MongoDB disconnected. Attempting to reconnect...');
+      console.warn('⚠️  MongoDB disconnected. Attempting to reconnect...');
       setTimeout(() => connectDB(0), 5000);
     });
 
@@ -125,10 +132,11 @@ const connectDB = async (retryCount: number = 0): Promise<void> => {
 
     console.error("🚨 CRITICAL: Failed to connect to MongoDB after all retries");
     
-    // In production, we might want to exit or continue with limited functionality
+    // In production, DON'T exit - let server run without database
     if (process.env.NODE_ENV === 'production') {
-      console.error("Production mode: Cannot continue without database connection");
-      process.exit(1);
+      console.error("⚠️  Production mode: Server will start WITHOUT database connection");
+      console.error("All database operations will fail until connection is restored");
+      return; // Don't exit
     } else {
       console.warn("Development mode: Continuing without database (limited functionality)");
     }

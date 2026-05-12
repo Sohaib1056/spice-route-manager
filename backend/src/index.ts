@@ -196,7 +196,10 @@ io.on("connection", (socket) => {
 });
 
 // Connect Database
-connectDB();
+connectDB().catch((error) => {
+  console.error('❌ CRITICAL: Database connection failed:', error);
+  console.error('Server will continue but database operations will fail');
+});
 
 // Log startup information
 console.log('='.repeat(60));
@@ -207,10 +210,18 @@ console.log(`🔌 Port: ${PORT}`);
 console.log(`🌐 CORS Enabled for origins:`);
 allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
 console.log(`   - *.vercel.app (all preview deployments)`);
+console.log(`📦 MongoDB URI: ${process.env.MONGO_URI ? 'Configured ✅' : 'Missing ❌'}`);
 console.log('='.repeat(60));
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running in ${config.nodeEnv} mode on port ${PORT}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`📡 API ready: http://localhost:${PORT}/api`);
+  console.log(`🌍 Server is listening on all interfaces (0.0.0.0:${PORT})`);
+}).on('error', (error: any) => {
+  console.error('❌ CRITICAL: Server failed to start:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please use a different port.`);
+  }
+  process.exit(1);
 });
