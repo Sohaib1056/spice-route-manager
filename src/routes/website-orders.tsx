@@ -180,9 +180,36 @@ export default function WebsiteOrdersPage() {
   const fetchStats = async () => {
     try {
       const response = await api.getWebsiteOrders({ page: 1, limit: 1 });
-      setStats(response.data?.stats || {});
+      const statsData = response.data?.stats || {};
+      
+      // Ensure arrays exist with default values
+      setStats({
+        total: statsData.total || 0,
+        pending: statsData.pending || 0,
+        confirmed: statsData.confirmed || 0,
+        processing: statsData.processing || 0,
+        shipped: statsData.shipped || 0,
+        delivered: statsData.delivered || 0,
+        cancelled: statsData.cancelled || 0,
+        todayOrders: statsData.todayOrders || 0,
+        totalRevenue: statsData.totalRevenue || [],
+        pendingPayments: statsData.pendingPayments || []
+      });
     } catch (error) {
       console.error("Error fetching stats:", error);
+      // Set default stats on error
+      setStats({
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        processing: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+        todayOrders: 0,
+        totalRevenue: [],
+        pendingPayments: []
+      });
     }
   };
 
@@ -372,7 +399,7 @@ export default function WebsiteOrdersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                Rs. {stats.totalRevenue[0]?.total?.toLocaleString() || 0}
+                Rs. {stats.totalRevenue?.[0]?.total?.toLocaleString() || 0}
               </div>
               <p className="text-xs text-muted-foreground">
                 All time revenue
@@ -387,7 +414,7 @@ export default function WebsiteOrdersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                Rs. {stats.pendingPayments[0]?.total?.toLocaleString() || 0}
+                Rs. {stats.pendingPayments?.[0]?.total?.toLocaleString() || 0}
               </div>
               <p className="text-xs text-muted-foreground">
                 Awaiting payment
