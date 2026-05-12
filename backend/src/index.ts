@@ -91,8 +91,8 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 
 // 3. Explicit OPTIONS handler for Express 5 (handles preflight before any other middleware)
-// In Express 5, '*' requires a parameter name, so we use '(.*)' to match everything
-app.options('(.*)', cors(corsOptions));
+// Using a regex pattern that is compatible with path-to-regexp v8+
+app.options('/:path*', cors(corsOptions));
 
 // 4. Simple health check - MUST be early
 app.get('/health', (req, res) => {
