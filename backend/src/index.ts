@@ -58,6 +58,7 @@ app.use((req, res, next) => {
 const allowedOrigins = [
   "https://spice-route-manager.vercel.app",
   "https://spice-route-manager-voem.vercel.app",
+  "https://spice-route-manager-git-main-sohaib.vercel.app", // Example for branches
   "http://localhost:3000",
   "http://localhost:5173",
   "http://localhost:5174"
@@ -68,6 +69,7 @@ const corsOptions: cors.CorsOptions = {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
+    // Check if origin is in whitelist or is a vercel subdomain
     const isAllowed = allowedOrigins.includes(origin) || 
                       origin.endsWith('.vercel.app') || 
                       origin.includes('localhost') ||
@@ -76,8 +78,9 @@ const corsOptions: cors.CorsOptions = {
     if (isAllowed) {
       callback(null, true);
     } else {
-      console.warn(`[CORS] Origin ${origin} not explicitly in whitelist, but allowing for production stability`);
-      callback(null, true); // Allow all in production to prevent blocking while debugging
+      // In production, log it but still allow it to prevent 502/CORS cascading errors
+      console.warn(`[CORS] Origin ${origin} not explicitly in whitelist, allowing for stability`);
+      callback(null, true); 
     }
   },
   credentials: true,
@@ -89,7 +92,8 @@ const corsOptions: cors.CorsOptions = {
     "X-Requested-With", 
     "Origin",
     "Access-Control-Request-Method",
-    "Access-Control-Request-Headers"
+    "Access-Control-Request-Headers",
+    "x-api-key"
   ],
   exposedHeaders: ["Content-Range", "X-Content-Range"],
   preflightContinue: false,
@@ -99,13 +103,17 @@ const corsOptions: cors.CorsOptions = {
 
 app.use(cors(corsOptions));
 
-// 3. Handle all preflight requests without route patterns.
-// Express 5 uses path-to-regexp v8, so wildcard route strings like "*", "(.*)",
-// and "/:path*" can crash the app during startup. App-level CORS already sets
-// the required headers, so we just end OPTIONS requests here.
+// 3. Robust preflight handling
+app.options('*', cors(corsOptions));
+
+// 4. Force CORS headers for all responses as a fallback
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
+  const origin = req.headers.origin;
+  if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (!origin) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   next();
 });
