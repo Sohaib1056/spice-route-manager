@@ -17,6 +17,7 @@ COPY package*.json ./
 # Install only production dependencies
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
-# Railway provides PORT, but we'll expose 8080 as a default
-EXPOSE 8080
+# Railway routes traffic to the port exposed by the container.
+# Our app listens on process.env.PORT (defaults to 5000), so expose 5000.
+EXPOSE 5000
 CMD ["npm", "start"]
