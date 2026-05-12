@@ -164,8 +164,8 @@ app.get("/", (req, res) => {
   });
 });
 
-// Catch-all for undefined API routes
-app.use("/api/*", (req, res) => {
+// 404 handler for undefined routes (must be after all routes)
+app.use((req, res) => {
   console.log(`⚠️  404: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
