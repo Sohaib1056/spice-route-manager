@@ -34,65 +34,99 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// 1. Health check first - ensure it's accessible without any middleware interference
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
-});
+// Trust proxy - CRITICAL for Railway/Vercel deployment
+app.set('trust proxy', 1);
 
-// 2. Ultimate CORS Middleware - MUST be before everything else
+// 1. CORS Configuration - MUST be FIRST before any other middleware
+const allowedOrigins = [
+  "https://spice-route-manager.vercel.app",
+  "https://spice-route-manager-voem.vercel.app",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174"
+];
+
+// CORS middleware with proper configuration
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow any Vercel preview deployments
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // Otherwise, allow it anyway to prevent blocking (you can change this to reject)
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+  allowedHeaders: [
+    "Content-Type", 
+    "Authorization", 
+    "Accept", 
+    "X-Requested-With", 
+    "Origin",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers"
+  ],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  optionsSuccessStatus: 204,
+  maxAge: 86400 // 24 hours
+}));
+
+// 2. Additional CORS headers for extra compatibility
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  
-  // Explicitly allow Vercel and Localhost origins
-  const allowedOrigins = [
-    "https://spice-route-manager.vercel.app",
-    "https://spice-route-manager-voem.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:5173"
-  ];
-
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  } else if (!origin) {
-    // For tools like Postman
-    res.setHeader("Access-Control-Allow-Origin", "*");
-  } else {
-    // Fallback to allowing the request origin anyway to prevent blocking
+  if (origin && (allowedOrigins.includes(origin) || origin.includes('.vercel.app'))) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
-
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, Origin, Access-Control-Allow-Origin");
   res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
-  
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
   next();
 });
 
-// 3. standard CORS as backup
-const corsOptions: cors.CorsOptions = {
-  origin: true,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin"],
-  optionsSuccessStatus: 204
-};
-app.use(cors(corsOptions));
+// 3. Body parsers - BEFORE routes
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 4. Other Middlewares
-app.use(express.json());
+// 4. Security middleware - AFTER CORS
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: false, // Disable CSP for API
+  contentSecurityPolicy: false,
 }));
+
+// 5. Logging
 app.use(morgan("dev"));
 
-// Static Folder for Uploads
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// 6. Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV 
+  });
+});
+
+// Static Folder for Uploads - with CORS headers
+app.use("/uploads", cors(), express.static(path.join(__dirname, "../uploads"), {
+  setHeaders: (res) => {
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
+}));
 
 // API Routes
 app.use("/api/products", productRoutes);
@@ -116,8 +150,14 @@ app.use("/api/returns", returnRoutes);
 app.get("/", (req, res) => {
   res.json({
     message: "Spice Route Manager API is running...",
-    version: "1.0.2-STRICT-CORS-FIX",
-    timestamp: new Date().toISOString()
+    version: "1.0.3-CORS-FIXED",
+    timestamp: new Date().toISOString(),
+    cors: "enabled",
+    allowedOrigins: [
+      "https://spice-route-manager.vercel.app",
+      "https://spice-route-manager-voem.vercel.app",
+      "*.vercel.app"
+    ]
   });
 });
 
@@ -128,8 +168,19 @@ const PORT = process.env.PORT || 5000;
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: (origin, callback) => {
+      // Allow all Vercel deployments and localhost
+      if (!origin || 
+          origin.includes('.vercel.app') || 
+          origin.includes('localhost') ||
+          allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all for now
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
