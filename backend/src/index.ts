@@ -93,9 +93,6 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }));
 
-// CRITICAL: Handle all OPTIONS requests explicitly
-app.options("*", cors());
-
 // 2. Additional CORS headers for extra compatibility
 app.use((req, res, next) => {
   const origin = req.headers.origin;
